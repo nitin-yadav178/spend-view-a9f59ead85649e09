@@ -1,0 +1,1957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Personal Spend Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:#0f1117; --bg-tab:#13151f;
+  --surface:#1a1d2e; --surface-2:#232640; --surface-3:#1e2030;
+  --border:#2a2d3e; --border-strong:#3a3f6b; --border-strong-hover:#4a4f8b;
+  --divider:#1e2030; --divider-table:#1a1c28;
+  --ink:#e8eaf0; --ink-strong:#fff; --muted:#8b8fa8; --muted-2:#c8cad8;
+  --accent:#5b61a8; --accent-2:#8b8ff0;
+  --danger:#e63946; --danger-bg:#2e0d0d;
+  --warning:#f4a261;
+  --success:#2ec4b6; --success-bg:#0d2e2b;
+  --info:#5b8dee;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; }
+
+/* ── Header ── */
+.header { background:linear-gradient(135deg,var(--surface),var(--surface-2)); padding:24px 40px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+.header h1 { font-size:19px; font-weight:600; color:var(--ink-strong); }
+.header .sub { font-size:12px; color:var(--muted); margin-top:3px; }
+
+/* ── Tab bar ── */
+.tab-bar { background:var(--bg-tab); border-bottom:1px solid var(--border); padding:0 40px; display:flex; align-items:center; gap:4px; overflow-x:auto; }
+.tab { padding:14px 20px; font-size:13px; font-weight:500; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; transition:all .2s; }
+.tab:hover { color:var(--muted-2); }
+.tab.active { color:var(--ink-strong); border-bottom-color:var(--accent); }
+.tab.trends { margin-left:auto; color:var(--info); }
+.tab.trends.active { color:var(--info); border-bottom-color:var(--info); }
+.tab-divider { width:1px; height:20px; background:var(--border); margin:0 8px; }
+
+/* ── Container ── */
+.container { max-width:1400px; margin:0 auto; padding:32px 40px; }
+.view { display:none; }
+.view.active { display:block; }
+
+/* ── KPI row ── */
+.kpi-row { display:grid; grid-template-columns:repeat(6,1fr); gap:16px; margin-bottom:28px; }
+.kpi { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px 22px; }
+.kpi .label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
+.kpi .value { font-size:24px; font-weight:700; }
+.kpi .sub { font-size:12px; color:var(--muted); margin-top:4px; }
+.kpi.red .value { color:var(--danger); }
+.kpi.yellow .value { color:var(--warning); }
+.kpi.teal .value { color:var(--success); }
+.kpi.blue .value { color:var(--info); }
+
+/* ── Charts row ── */
+.charts-row { display:grid; grid-template-columns:380px 1fr; gap:20px; margin-bottom:28px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px; }
+.card h2 { font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; margin-bottom:18px; }
+
+.donut-wrap { position:relative; width:220px; height:220px; margin:0 auto 18px; }
+.donut-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; pointer-events:none; }
+.donut-center .big { font-size:20px; font-weight:700; color:var(--ink-strong); }
+.donut-center .sm { font-size:11px; color:var(--muted); }
+
+.legend { display:flex; flex-direction:column; gap:6px; }
+.legend-item { display:flex; align-items:center; justify-content:space-between; padding:5px 0; border-bottom:1px solid var(--divider); }
+.legend-item:last-child { border-bottom:none; }
+.dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.legend-name { font-size:12px; color:var(--muted-2); margin-left:9px; }
+.legend-amt { font-size:12px; font-weight:600; color:var(--ink-strong); }
+.legend-pct { font-size:11px; color:var(--muted); width:30px; text-align:right; margin-left:10px; }
+
+.bar-wrap { height:300px; }
+
+/* ── Sunita row ── */
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:28px; }
+.stat-row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--divider); }
+.stat-row:last-of-type { border-bottom:none; }
+.stat-row .s-label { font-size:13px; color:var(--muted); }
+.stat-row .s-val { font-size:13px; font-weight:600; color:var(--ink-strong); }
+.progress-bar { background:var(--border); border-radius:4px; height:5px; margin-top:14px; }
+.progress-fill { height:5px; border-radius:4px; background:linear-gradient(90deg,var(--accent),var(--accent-2)); }
+
+/* ── Transactions ── */
+.txn-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px; }
+.txn-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.filter-row { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+.filter-sub-row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.filter-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-right:2px; flex-shrink:0; }
+
+/* ── Top card filter bar ── */
+.card-filter-bar { display:flex; gap:8px; align-items:center; margin-bottom:22px; flex-wrap:wrap; }
+.card-filter-bar-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-right:4px; }
+.card-filter-btn { background:var(--surface-3); border:1px solid var(--border); color:var(--muted); padding:7px 18px; border-radius:20px; font-size:12px; font-weight:500; cursor:pointer; transition:all .2s; white-space:nowrap; }
+.card-filter-btn:hover { color:var(--muted-2); border-color:var(--border-strong); }
+.card-filter-btn.active { background:var(--border-strong); border-color:var(--accent); color:var(--ink-strong); box-shadow:0 0 0 1px #5b61a840; }
+.filter-btn { background:var(--surface-2); border:1px solid var(--border); color:var(--muted); padding:5px 12px; border-radius:16px; font-size:11px; cursor:pointer; transition:all .2s; }
+.filter-btn:hover,.filter-btn.active { background:var(--border-strong); border-color:var(--accent); color:var(--ink-strong); }
+.search-box { background:var(--surface-2); border:1px solid var(--border); color:var(--ink); padding:7px 12px; border-radius:8px; font-size:12px; width:200px; outline:none; }
+.search-box:focus { border-color:var(--accent); }
+
+table.txn { width:100%; border-collapse:collapse; }
+table.txn th { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; padding:8px 14px; text-align:left; border-bottom:1px solid var(--border); }
+table.txn td { padding:10px 14px; font-size:13px; border-bottom:1px solid var(--divider-table); }
+table.txn tr:last-child td { border-bottom:none; }
+table.txn tr:hover td { background:var(--surface-3); }
+.cat-pill { display:inline-block; padding:2px 9px; border-radius:10px; font-size:11px; font-weight:500; }
+.amt-debit { font-weight:600; color:var(--ink); }
+.amt-credit { font-weight:600; color:var(--success); }
+.amt-large { font-weight:600; color:var(--danger); }
+.card-tag { font-size:11px; color:var(--muted); }
+.no-results { text-align:center; color:var(--muted); padding:28px; font-size:13px; }
+
+/* ── Bill reconciliation ── */
+.recon { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 24px 20px; margin-bottom:20px; }
+.recon-head { display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:16px; }
+.recon-head h2 { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; }
+.recon-head .period { font-size:11px; color:var(--muted); }
+.recon-eq { display:flex; align-items:flex-start; gap:20px; flex-wrap:wrap; }
+.recon-term { min-width:0; }
+.recon-term .amt { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-.01em; line-height:1.15; }
+.recon-term .name { font-size:12px; color:var(--muted-2); margin-top:5px; }
+.recon-term .note { font-size:11px; color:var(--muted); margin-top:2px; }
+.recon-term.carry .amt { color:var(--warning); }
+.recon-term.spend .amt { color:var(--ink-strong); }
+.recon-term.total .amt { font-size:27px; color:var(--danger); }
+.recon-op { font-size:19px; font-weight:400; color:var(--muted); line-height:1.35; flex:none; }
+.recon-op.eq { color:var(--muted-2); }
+.recon-flag { margin-top:14px; padding-top:12px; border-top:1px solid var(--divider); font-size:11px; color:var(--muted); }
+.recon-flag b { color:var(--warning); font-weight:600; }
+@media (max-width:720px) {
+  .recon-eq { flex-direction:column; gap:12px; }
+  .recon-op { display:none; }
+  .recon-term.total { padding-top:12px; border-top:1px solid var(--divider); width:100%; }
+}
+
+/* ── Range view ── */
+.range-controls { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px 24px; margin-bottom:24px; display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+.range-controls label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; display:flex; flex-direction:column; gap:6px; }
+.range-controls input[type=date] { background:var(--surface-2); border:1px solid var(--border); color:var(--ink); padding:7px 12px; border-radius:8px; font-size:13px; outline:none; cursor:pointer; }
+.range-controls input[type=date]:focus { border-color:var(--accent); }
+.range-apply { background:var(--border-strong); border:1px solid var(--accent); color:var(--ink-strong); padding:8px 22px; border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; margin-top:16px; transition:all .2s; }
+.range-apply:hover { background:var(--border-strong-hover); }
+.range-summary { font-size:12px; color:var(--muted); margin-left:auto; }
+.range-kpi-row { display:grid; grid-template-columns:repeat(5,1fr); gap:16px; margin-bottom:24px; }
+
+/* ── Trends view ── */
+.trends-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:28px; }
+.trends-full { margin-bottom:28px; }
+.chart-tall { height:320px; }
+.chart-med { height:260px; }
+.placeholder-msg { text-align:center; padding:40px; color:var(--muted); font-size:13px; border:1px dashed var(--border); border-radius:8px; margin-top:8px; }
+
+/* ── Reimbursable ── */
+.reimb-btn { background:transparent; border:1px solid var(--border); color:var(--muted); padding:3px 9px; border-radius:10px; font-size:10px; cursor:pointer; transition:all .2s; opacity:.55; white-space:nowrap; }
+table.txn tr:hover .reimb-btn, table.txn tr:focus-within .reimb-btn, .reimb-btn:focus-visible { opacity:1; }
+.reimb-btn.active { background:var(--success-bg); border-color:var(--success); color:var(--success); opacity:1 !important; }
+tr.reimb-row td { background:#0d2020 !important; }
+
+/* ── Exclude ── */
+.exclude-btn { background:transparent; border:1px solid var(--border); color:var(--muted); padding:3px 9px; border-radius:10px; font-size:10px; cursor:pointer; transition:all .2s; opacity:.55; white-space:nowrap; margin-left:4px; }
+table.txn tr:hover .exclude-btn, table.txn tr:focus-within .exclude-btn, .exclude-btn:focus-visible { opacity:1; }
+.exclude-btn.active { background:var(--danger-bg); border-color:var(--danger); color:var(--danger); opacity:1 !important; }
+tr.exclude-row td { opacity:0.45; }
+tr.exclude-row td:nth-child(2) { text-decoration:line-through; }
+
+/* ── Category edit ── */
+.cat-pill { cursor:pointer; transition:opacity .15s; }
+.cat-pill:hover { opacity:0.75; }
+.cat-select { appearance:none; border:none; outline:none; cursor:pointer; padding:2px 9px; border-radius:10px; font-size:11px; font-weight:500; }
+
+/* ── Budget strip ── */
+.budget-strip { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 22px; margin-bottom:20px; }
+.budget-top { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:12px; }
+.budget-left { display:flex; align-items:center; gap:10px; }
+.budget-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+.budget-input { background:var(--surface-2); border:1px solid var(--border); color:var(--ink); padding:6px 10px; border-radius:8px; font-size:14px; font-weight:600; width:130px; outline:none; }
+.budget-input:focus { border-color:var(--accent); }
+.budget-right { display:flex; align-items:center; gap:14px; font-size:13px; }
+.budget-spent { color:var(--muted-2); }
+.budget-spent b { color:var(--ink-strong); }
+.budget-chip { padding:4px 12px; border-radius:14px; font-size:12px; font-weight:600; }
+.budget-chip.ok { background:var(--success-bg); color:var(--success); }
+.budget-chip.over { background:var(--danger-bg); color:var(--danger); }
+.budget-mom { font-size:12px; color:var(--muted); }
+.budget-mom .up { color:var(--danger); font-weight:600; }
+.budget-mom .down { color:var(--success); font-weight:600; }
+.budget-bar { background:var(--border); border-radius:5px; height:8px; overflow:hidden; }
+.budget-fill { width:100%; height:8px; border-radius:5px; transform-origin:left; transform:scaleX(0); transition:transform .4s; }
+.budget-empty { font-size:12px; color:var(--muted); }
+
+/* ── Recurring + MoM cards ── */
+.card .card-sub { font-size:11px; color:var(--muted); font-weight:400; text-transform:none; letter-spacing:0; margin-top:-12px; margin-bottom:16px; }
+.recurring-summary { font-size:13px; color:var(--muted-2); margin-bottom:14px; }
+.recurring-summary b { color:var(--ink-strong); }
+.mom-total { font-size:22px; font-weight:700; margin-bottom:4px; }
+.mom-total.up { color:var(--danger); }
+.mom-total.down { color:var(--success); }
+.mom-sub { font-size:12px; color:var(--muted); margin-bottom:16px; }
+.mover-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid var(--divider); font-size:13px; }
+.mover-row:last-child { border-bottom:none; }
+.mover-name { color:var(--muted-2); }
+.mover-delta.up { color:var(--danger); font-weight:600; }
+.mover-delta.down { color:var(--success); font-weight:600; }
+
+/* ── CSV button ── */
+.csv-btn { background:var(--surface-2); border:1px solid var(--border); color:var(--muted); padding:7px 14px; border-radius:8px; font-size:12px; font-weight:500; cursor:pointer; transition:all .2s; margin-left:8px; }
+.csv-btn:hover { color:var(--ink-strong); border-color:var(--accent); }
+
+/* ── Focus visibility (keyboard) ── */
+.search-box:focus-visible, .budget-input:focus-visible, .range-controls input[type=date]:focus-visible,
+.cat-select:focus-visible, .range-apply:focus-visible, .card-filter-btn:focus-visible,
+.filter-btn:focus-visible, .reimb-btn:focus-visible, .exclude-btn:focus-visible,
+.csv-btn:focus-visible, .tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0.001ms !important; }
+}
+
+/* ── Responsive ── */
+@media (max-width: 1150px) {
+  .kpi-row { grid-template-columns: repeat(3, 1fr); }
+  .charts-row { grid-template-columns: 1fr; }
+  .range-kpi-row { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 760px) {
+  .header { padding:20px; }
+  .tab-bar, .container { padding-left:20px; padding-right:20px; }
+  .container { padding-top:24px; padding-bottom:24px; }
+  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .two-col, .trends-grid { grid-template-columns: 1fr; }
+  .range-kpi-row { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .kpi-row, .range-kpi-row { grid-template-columns: 1fr; }
+  .search-box { width: 140px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>Personal Spend Tracker</h1>
+    <div class="sub">All cards · All statements · One view</div>
+  </div>
+  <div style="font-size:12px;color:#8b8fa8;text-align:right">
+    <div id="headerMeta"></div>
+  </div>
+</div>
+
+<div class="tab-bar" id="tabBar"></div>
+
+<div class="container">
+  <div class="view active" id="view-trends"></div>
+  <div class="view" id="view-range"></div>
+  <!-- month views injected by JS -->
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  DATA — add a new object here for each month
+// ═══════════════════════════════════════════════
+const STATEMENTS = [
+  {
+    id: 'apr-2026',
+    label: 'Apr 2026',
+    period: '27 Mar – 26 Apr 2026',
+    minDue: 48481,
+    dueDate: '11 May 2026',
+    outstanding: 342577,
+    loanOutstanding: 49743,
+    loanNote: 'Kurlon EMI · 3 of 6 | MakeMyTrip EMI · 1 remaining | Axis due 21 May',
+    addOnHolder: 'Sunita Yadav',
+    addOnGross: 37445,
+    addOnNet: 32617,
+    addOnNote: '100% travel — Goibibo + IndiGo',
+    addOnTxns: [
+      { date:'31 Mar', merchant:'Goibibo (booking)',  amount:9966,  credit:false },
+      { date:'6 Apr',  merchant:'Goibibo (refund)',   amount:425,   credit:true  },
+      { date:'8 Apr',  merchant:'Goibibo (refund)',   amount:4404,  credit:true  },
+      { date:'10 Apr', merchant:'Amazon Pay',         amount:399,   credit:false },
+      { date:'21 Apr', merchant:'IndiGo Airlines',    amount:21408, credit:false },
+      { date:'23 Apr', merchant:'IndiGo Airlines',    amount:5672,  credit:false },
+    ],
+    txns: [
+      { date:'28 Mar', merchant:'Tata 1mg',                  cat:'Health',              amount:1129,  credit:false, card:'HSBC TravelOne' },
+      { date:'2 Apr',  merchant:'Benee Co',                  cat:'Food & Dining',       amount:555,   credit:false, card:'HSBC TravelOne' },
+      { date:'2 Apr',  merchant:'Uber',                      cat:'Transport',           amount:672,   credit:false, card:'HSBC TravelOne' },
+      { date:'2 Apr',  merchant:'M And M Hospitality',       cat:'Food & Dining',       amount:263,   credit:false, card:'HSBC TravelOne' },
+      { date:'4 Apr',  merchant:'Swiggy',                    cat:'Food & Dining',       amount:3603,  credit:false, card:'HSBC TravelOne' },
+      { date:'4 Apr',  merchant:'Snabbit',                   cat:'Home Services',       amount:179,   credit:false, card:'HSBC TravelOne' },
+      { date:'5 Apr',  merchant:'Kurlon Home',               cat:'Home & Furniture',    amount:10000, credit:false, card:'HSBC TravelOne' },
+      { date:'5 Apr',  merchant:'M S S S Wines',             cat:'Food & Dining',       amount:1465,  credit:false, card:'HSBC TravelOne' },
+      { date:'5 Apr',  merchant:'Amazon (x2)',               cat:'Shopping',            amount:1856,  credit:false, card:'HSBC TravelOne' },
+      { date:'5 Apr',  merchant:'YouTube / Google',          cat:'Subscriptions',       amount:299,   credit:false, card:'HSBC TravelOne' },
+      { date:'6 Apr',  merchant:'Swiggy',                    cat:'Food & Dining',       amount:1789,  credit:false, card:'HSBC TravelOne' },
+      { date:'6 Apr',  merchant:'MaestroEdge',               cat:'Subscriptions',       amount:169,   credit:false, card:'HSBC TravelOne' },
+      { date:'7 Apr',  merchant:'Air India',                 cat:'Travel',              amount:7465,  credit:false, card:'HSBC TravelOne' },
+      { date:'7 Apr',  merchant:'Amazon Pay',                cat:'Shopping',            amount:904,   credit:false, card:'HSBC TravelOne' },
+      { date:'8 Apr',  merchant:'HSBC TravelWithPoints',     cat:'Travel',              amount:7975,  credit:false, card:'HSBC TravelOne' },
+      { date:'8 Apr',  merchant:'Foods Villa',               cat:'Food & Dining',       amount:3042,  credit:false, card:'HSBC TravelOne' },
+      { date:'8 Apr',  merchant:'Wellness Forever',          cat:'Health',              amount:345,   credit:false, card:'HSBC TravelOne' },
+      { date:'9 Apr',  merchant:'Maximize Pay',              cat:'Home Services',       amount:990,   credit:false, card:'HSBC TravelOne' },
+      { date:'10 Apr', merchant:'Kitchen Code',              cat:'Food & Dining',       amount:426,   credit:false, card:'HSBC TravelOne' },
+      { date:'10 Apr', merchant:'Subko Coffee',              cat:'Food & Dining',       amount:300,   credit:false, card:'HSBC TravelOne' },
+      { date:'10 Apr', merchant:'Starbucks',                 cat:'Food & Dining',       amount:500,   credit:false, card:'HSBC TravelOne' },
+      { date:'10 Apr', merchant:'The Beer Circle',           cat:'Food & Dining',       amount:1288,  credit:false, card:'HSBC TravelOne' },
+      { date:'10 Apr', merchant:'Maximize Pay',              cat:'Home Services',       amount:1000,  credit:false, card:'HSBC TravelOne' },
+      { date:'10 Apr', merchant:'Swiggy',                    cat:'Food & Dining',       amount:877,   credit:false, card:'HSBC TravelOne' },
+      { date:'11 Apr', merchant:'The Bread Bar',             cat:'Food & Dining',       amount:3255,  credit:false, card:'HSBC TravelOne' },
+      { date:'11 Apr', merchant:'Kurlon Home',               cat:'Home & Furniture',    amount:24000, credit:false, card:'HSBC TravelOne' },
+      { date:'12 Apr', merchant:'Society Stores',            cat:'Grocery + QC',        amount:1347,  credit:false, card:'HSBC TravelOne' },
+      { date:'12 Apr', merchant:'Furlenco',                  cat:'Subscriptions',       amount:2342,  credit:false, card:'HSBC TravelOne' },
+      { date:'12 Apr', merchant:'GYFTR Vouchers',            cat:'Subscriptions',       amount:4995,  credit:false, card:'HSBC TravelOne' },
+      { date:'13 Apr', merchant:'Uber',                      cat:'Transport',           amount:62,    credit:false, card:'HSBC TravelOne' },
+      { date:'13 Apr', merchant:'Swiggy (x2)',               cat:'Food & Dining',       amount:739,   credit:false, card:'HSBC TravelOne' },
+      { date:'13 Apr', merchant:'Soul Fry Bar',              cat:'Food & Dining',       amount:19891, credit:false, card:'HSBC TravelOne' },
+      { date:'14 Apr', merchant:'Wellness Forever',          cat:'Health',              amount:105,   credit:false, card:'HSBC TravelOne' },
+      { date:'15 Apr', merchant:'Starbucks',                 cat:'Food & Dining',       amount:347,   credit:false, card:'HSBC TravelOne' },
+      { date:'15 Apr', merchant:'Snabbit',                   cat:'Home Services',       amount:49,    credit:false, card:'HSBC TravelOne' },
+      { date:'16 Apr', merchant:'UrbanClap',                 cat:'Home Services',       amount:249,   credit:false, card:'HSBC TravelOne' },
+      { date:'16 Apr', merchant:'Uber',                      cat:'Transport',           amount:242,   credit:false, card:'HSBC TravelOne' },
+      { date:'16 Apr', merchant:'Swiggy',                    cat:'Food & Dining',       amount:403,   credit:false, card:'HSBC TravelOne' },
+      { date:'17 Apr', merchant:'Blinkit',                   cat:'Grocery + QC',        amount:455,   credit:false, card:'HSBC TravelOne' },
+      { date:'18 Apr', merchant:'Vedha Watch Care',          cat:'Shopping',            amount:2495,  credit:false, card:'HSBC TravelOne' },
+      { date:'18 Apr', merchant:'Shri Amarnathji Fee (x2)',  cat:'Travel',              amount:300,   credit:false, card:'HSBC TravelOne' },
+      { date:'18 Apr', merchant:'Aishwarya NX (fashion)',    cat:'Shopping',            amount:1506,  credit:false, card:'HSBC TravelOne' },
+      { date:'19 Apr', merchant:'Uber',                      cat:'Transport',           amount:322,   credit:false, card:'HSBC TravelOne' },
+      { date:'19 Apr', merchant:'IKEA (x3)',                 cat:'Home & Furniture',    amount:20052, credit:false, card:'HSBC TravelOne' },
+      { date:'19 Apr', merchant:'The Table',                 cat:'Food & Dining',       amount:12344, credit:false, card:'HSBC TravelOne' },
+      { date:'19 Apr', merchant:'Swiggy',                    cat:'Food & Dining',       amount:8355,  credit:false, card:'HSBC TravelOne' },
+      { date:'20 Apr', merchant:'HSBC TravelWithPoints',     cat:'Travel',              amount:7282,  credit:false, card:'HSBC TravelOne' },
+      { date:'20 Apr', merchant:'HSBC TravelWithPoints',     cat:'Travel',              amount:8076,  credit:false, card:'HSBC TravelOne' },
+      { date:'20 Apr', merchant:'Uber',                      cat:'Transport',           amount:355,   credit:false, card:'HSBC TravelOne' },
+      { date:'20 Apr', merchant:'MaestroEdge',               cat:'Subscriptions',       amount:101,   credit:false, card:'HSBC TravelOne' },
+      { date:'21 Apr', merchant:'Balaji Chennai',            cat:'Food & Dining',       amount:520,   credit:false, card:'HSBC TravelOne' },
+      { date:'21 Apr', merchant:'Deyga Organics',            cat:'Shopping',            amount:2398,  credit:false, card:'HSBC TravelOne' },
+      { date:'22 Apr', merchant:'UrbanClap',                 cat:'Home Services',       amount:337,   credit:false, card:'HSBC TravelOne' },
+      { date:'22 Apr', merchant:'Madhukar Sundara Amin',     cat:'Food & Dining',       amount:1180,  credit:false, card:'HSBC TravelOne' },
+      { date:'22 Apr', merchant:'Swiggy',                    cat:'Food & Dining',       amount:682,   credit:false, card:'HSBC TravelOne' },
+      { date:'23 Apr', merchant:'Ashwith Bar & Restaurant',  cat:'Food & Dining',       amount:8429,  credit:false, card:'HSBC TravelOne' },
+      { date:'24 Apr', merchant:'UrbanClap',                 cat:'Home Services',       amount:158,   credit:false, card:'HSBC TravelOne' },
+      { date:'25 Apr', merchant:'Swiggy',                    cat:'Food & Dining',       amount:974,   credit:false, card:'HSBC TravelOne' },
+      { date:'25 Apr', merchant:'UrbanClap',                 cat:'Home Services',       amount:111,   credit:false, card:'HSBC TravelOne' },
+      { date:'25 Apr', merchant:'Scapia · Mar\'26 EMI (1/3)', cat:'EMI Repayment',      amount:20430, credit:false, card:'HSBC TravelOne' },
+      // ── Axis Atlas (Nitin) ──
+      { date:'2 Apr',  merchant:'Google Play',               cat:'Subscriptions & Misc', amount:650,  credit:false, card:'Axis Atlas' },
+      { date:'3 Apr',  merchant:'Swiggy',                    cat:'Food & Dining',        amount:1004, credit:false, card:'Axis Atlas' },
+      { date:'4 Apr',  merchant:'Brijwasi Kashinath',        cat:'Food & Dining',        amount:662,  credit:false, card:'Axis Atlas' },
+      { date:'4 Apr',  merchant:'Zepto',                     cat:'Grocery + QC',         amount:255,  credit:false, card:'Axis Atlas' },
+      { date:'6 Apr',  merchant:'Google Play',               cat:'Subscriptions & Misc', amount:100,  credit:false, card:'Axis Atlas' },
+      { date:'18 Apr', merchant:'Theobroma',                 cat:'Food & Dining',        amount:173,  credit:false, card:'Axis Atlas' },
+      { date:'18 Apr', merchant:'Zepto',                     cat:'Grocery + QC',         amount:235,  credit:false, card:'Axis Atlas' },
+      { date:'20 Apr', merchant:'Claude.ai (USD 23.60)',     cat:'Subscriptions & Misc', amount:2194, credit:false, card:'Axis Atlas' },
+      { date:'21 Apr', merchant:'Google Play',               cat:'Subscriptions & Misc', amount:1999, credit:false, card:'Axis Atlas' },
+      { date:'21 Apr', merchant:'Forex fee + GST',           cat:'Subscriptions & Misc', amount:91,   credit:false, card:'Axis Atlas' },
+      { date:'22 Apr', merchant:'Zepto',                     cat:'Grocery + QC',         amount:1564, credit:false, card:'Axis Atlas' },
+      { date:'25 Apr', merchant:'Zepto',                     cat:'Grocery + QC',         amount:296,  credit:false, card:'Axis Atlas' },
+      // ── Axis Atlas (Meenakshi Sukhesh) ──
+      { date:'3 Apr',  merchant:'Reeva Hospitality',         cat:'Food & Dining',        amount:2563,  credit:false, card:'Axis Atlas' },
+      { date:'8 Apr',  merchant:'Swiggy',                    cat:'Food & Dining',        amount:779,   credit:false, card:'Axis Atlas' },
+      { date:'10 Apr', merchant:'MakeMyTrip EMI 2/3',        cat:'Travel',               amount:6336,  credit:false, card:'Axis Atlas' },
+      { date:'10 Apr', merchant:'EMI interest + GST',        cat:'Travel',               amount:201,   credit:false, card:'Axis Atlas' },
+      { date:'11 Apr', merchant:'Swiggy',                    cat:'Food & Dining',        amount:751,   credit:false, card:'Axis Atlas' },
+      { date:'12 Apr', merchant:'Fashion EMI 3/3 (final)',   cat:'Shopping',             amount:24012, credit:false, card:'Axis Atlas' },
+      { date:'12 Apr', merchant:'EMI interest + GST',        cat:'Shopping',             amount:378,   credit:false, card:'Axis Atlas' },
+      { date:'26 Apr', merchant:'Swiggy',                    cat:'Food & Dining',        amount:3581,  credit:false, card:'Axis Atlas' },
+      { date:'27 Apr', merchant:'MakeMyTrip (new booking)',  cat:'Travel',               amount:22822, credit:false, card:'Axis Atlas' },
+    ]
+  }
+  ,{
+  id: 'may-2026',
+  label: 'May 2026',
+  period: '27 Apr – 26 May 2026',
+  minDue: 34630,
+  dueDate: '10 Jun 2026',
+  outstanding: 374504,
+  loanOutstanding: 28825,
+  loanNote: 'LOP 1002-1520 · 4 of 6 | Axis Atlas due ₹2,20,651 by 21 Jun',
+  addOnHolder: 'Sunita Yadav',
+  addOnGross: 6858,
+  addOnNet: 6858,
+  addOnNote: 'DMart + Bata + Aditya Birla Fashion',
+  addOnTxns: [
+    { date:'5 May',  merchant:'DMart',                amount:864,  credit:false },
+    { date:'23 May', merchant:'Bata India',            amount:2697, credit:false },
+    { date:'23 May', merchant:'Aditya Birla Fashion',  amount:3297, credit:false },
+  ],
+  txns: [
+    // ── HSBC TravelOne ──
+    { date:'26 Apr', merchant:'M S S S Wines',                  cat:'Food & Dining',        amount:5300,  credit:false, card:'HSBC TravelOne' },
+    { date:'27 Apr', merchant:'Swiggy',                         cat:'Food & Dining',        amount:251,   credit:false, card:'HSBC TravelOne' },
+    { date:'27 Apr', merchant:'HSBC TravelWithPoints (flight)', cat:'Travel',               amount:24978, credit:false, card:'HSBC TravelOne' },
+    { date:'27 Apr', merchant:'Airtel',                         cat:'Subscriptions & Misc', amount:697,   credit:false, card:'HSBC TravelOne' },
+    { date:'26 Apr', merchant:'MaestroEdge (x2)',               cat:'Subscriptions & Misc', amount:378,   credit:false, card:'HSBC TravelOne' },
+    { date:'26 Apr', merchant:'UrbanClap (x3)',                 cat:'Home Services',        amount:469,   credit:false, card:'HSBC TravelOne' },
+    { date:'28 Apr', merchant:'MaestroEdge',                    cat:'Subscriptions & Misc', amount:100,   credit:false, card:'HSBC TravelOne' },
+    { date:'28 Apr', merchant:'GYFTR Vouchers',                 cat:'Shopping',             amount:2500,  credit:false, card:'HSBC TravelOne' },
+    { date:'28 Apr', merchant:'MakeMyTrip',                     cat:'Travel',               amount:6088,  credit:false, card:'HSBC TravelOne' },
+    { date:'29 Apr', merchant:'Blinkit',                        cat:'Grocery + QC',         amount:220,   credit:false, card:'HSBC TravelOne' },
+    { date:'29 Apr', merchant:'MakeMyTrip',                     cat:'Travel',               amount:18555, credit:false, card:'HSBC TravelOne' },
+    { date:'30 Apr', merchant:'Zeebop Restaurant (Goa)',        cat:'Food & Dining',        amount:2157,  credit:false, card:'HSBC TravelOne' },
+    { date:'30 Apr', merchant:'Bombil (Goa)',                   cat:'Food & Dining',        amount:1147,  credit:false, card:'HSBC TravelOne' },
+    { date:'30 Apr', merchant:'Celestial Hospital (Goa)',       cat:'Health',               amount:2901,  credit:false, card:'HSBC TravelOne' },
+    { date:'30 Apr', merchant:'Goa Miles (cab)',                cat:'Transport',            amount:993,   credit:false, card:'HSBC TravelOne' },
+    { date:'30 Apr', merchant:'Perfect Cup (Goa)',              cat:'Food & Dining',        amount:882,   credit:false, card:'HSBC TravelOne' },
+    { date:'1 May',  merchant:'Pousada (Goa hotel)',            cat:'Travel',               amount:6850,  credit:false, card:'HSBC TravelOne' },
+    { date:'1 May',  merchant:'Moana Eco Lifestyle (Goa)',      cat:'Travel',               amount:2065,  credit:false, card:'HSBC TravelOne' },
+    { date:'2 May',  merchant:"Bob's Inn (Goa)",                cat:'Travel',               amount:780,   credit:false, card:'HSBC TravelOne' },
+    { date:'2 May',  merchant:'Somnath Kaju (Goa)',             cat:'Shopping',             amount:10350, credit:false, card:'HSBC TravelOne' },
+    { date:'2 May',  merchant:'Swiggy',                         cat:'Food & Dining',        amount:684,   credit:false, card:'HSBC TravelOne' },
+    { date:'2 May',  merchant:'Living Liquidz (Goa)',           cat:'Food & Dining',        amount:1690,  credit:false, card:'HSBC TravelOne' },
+    { date:'2 May',  merchant:'House of Memories (Goa)',        cat:'Shopping',             amount:800,   credit:false, card:'HSBC TravelOne' },
+    { date:'3 May',  merchant:'Furlenco / Kieraya',             cat:'Subscriptions & Misc', amount:7069,  credit:false, card:'HSBC TravelOne' },
+    { date:'3 May',  merchant:'Catamount Education',            cat:'Subscriptions & Misc', amount:1003,  credit:false, card:'HSBC TravelOne' },
+    { date:'3 May',  merchant:'Blinkit',                        cat:'Grocery + QC',         amount:556,   credit:false, card:'HSBC TravelOne' },
+    { date:'4 May',  merchant:'UrbanClap',                      cat:'Home Services',        amount:337,   credit:false, card:'HSBC TravelOne' },
+    { date:'4 May',  merchant:'Snabbit',                        cat:'Home Services',        amount:149,   credit:false, card:'HSBC TravelOne' },
+    { date:'4 May',  merchant:'Blinkit',                        cat:'Grocery + QC',         amount:880,   credit:false, card:'HSBC TravelOne' },
+    { date:'4 May',  merchant:'Swiggy',                         cat:'Food & Dining',        amount:483,   credit:false, card:'HSBC TravelOne' },
+    { date:'5 May',  merchant:'UrbanClap',                      cat:'Home Services',        amount:337,   credit:false, card:'HSBC TravelOne' },
+    { date:'5 May',  merchant:'YouTube / Google',               cat:'Subscriptions & Misc', amount:299,   credit:false, card:'HSBC TravelOne' },
+    { date:'5 May',  merchant:'Uber',                           cat:'Transport',            amount:207,   credit:false, card:'HSBC TravelOne' },
+    { date:'6 May',  merchant:'Maximize Pay (cleaning)',        cat:'Home Services',        amount:833,   credit:false, card:'HSBC TravelOne' },
+    { date:'6 May',  merchant:'Blue Dart (courier)',            cat:'Subscriptions & Misc', amount:8007,  credit:false, card:'HSBC TravelOne' },
+    { date:'6 May',  merchant:'DailyObjects',                   cat:'Shopping',             amount:398,   credit:false, card:'HSBC TravelOne' },
+    { date:'6 May',  merchant:'Uber',                           cat:'Transport',            amount:365,   credit:false, card:'HSBC TravelOne' },
+    { date:'7 May',  merchant:'Uber',                           cat:'Transport',            amount:452,   credit:false, card:'HSBC TravelOne' },
+    { date:'7 May',  merchant:'UrbanClap',                      cat:'Home Services',        amount:638,   credit:false, card:'HSBC TravelOne' },
+    { date:'7 May',  merchant:'1BHK Kitchen',                   cat:'Food & Dining',        amount:1329,  credit:false, card:'HSBC TravelOne' },
+    { date:'8 May',  merchant:'UrbanClap (x2)',                 cat:'Home Services',        amount:260,   credit:false, card:'HSBC TravelOne' },
+    { date:'8 May',  merchant:'Swiggy (net of refund)',         cat:'Food & Dining',        amount:809,   credit:false, card:'HSBC TravelOne' },
+    { date:'9 May',  merchant:'Swiggy',                         cat:'Food & Dining',        amount:228,   credit:false, card:'HSBC TravelOne' },
+    { date:'9 May',  merchant:'Maximize Pay (cleaning)',        cat:'Home Services',        amount:3299,  credit:false, card:'HSBC TravelOne' },
+    { date:'9 May',  merchant:'Siddhivinayak Fuel',             cat:'Transport',            amount:867,   credit:false, card:'HSBC TravelOne' },
+    { date:'9 May',  merchant:'H&M',                            cat:'Shopping',             amount:7496,  credit:false, card:'HSBC TravelOne' },
+    { date:'9 May',  merchant:'Lifestyle International',        cat:'Shopping',             amount:799,   credit:false, card:'HSBC TravelOne' },
+    { date:'10 May', merchant:'Maximize Pay (cleaning)',        cat:'Home Services',        amount:2000,  credit:false, card:'HSBC TravelOne' },
+    { date:'10 May', merchant:'Swiggy',                         cat:'Food & Dining',        amount:1150,  credit:false, card:'HSBC TravelOne' },
+    { date:'10 May', merchant:'Westside',                       cat:'Shopping',             amount:1207,  credit:false, card:'HSBC TravelOne' },
+    { date:'10 May', merchant:'Blinkit (x3)',                   cat:'Grocery + QC',         amount:1876,  credit:false, card:'HSBC TravelOne' },
+    { date:'10 May', merchant:'Amazon Pay',                     cat:'Shopping',             amount:4545,  credit:false, card:'HSBC TravelOne' },
+    { date:'11 May', merchant:'Blinkit',                        cat:'Grocery + QC',         amount:811,   credit:false, card:'HSBC TravelOne' },
+    { date:'12 May', merchant:'Snabbit',                        cat:'Home Services',        amount:129,   credit:false, card:'HSBC TravelOne' },
+    { date:'13 May', merchant:'Uber (x2)',                      cat:'Transport',            amount:721,   credit:false, card:'HSBC TravelOne' },
+    { date:'13 May', merchant:'Blinkit',                        cat:'Grocery + QC',         amount:524,   credit:false, card:'HSBC TravelOne' },
+    { date:'13 May', merchant:'CarbonTree Clothing',            cat:'Shopping',             amount:950,   credit:false, card:'HSBC TravelOne' },
+    { date:'13 May', merchant:'Movietimes Cineplex',            cat:'Subscriptions & Misc', amount:5895,  credit:false, card:'HSBC TravelOne' },
+    { date:'14 May', merchant:'HSBC TravelWithPoints (flight)', cat:'Travel',               amount:8100,  credit:false, card:'HSBC TravelOne' },
+    { date:'14 May', merchant:'Maximize Pay (cleaning)',        cat:'Home Services',        amount:6288,  credit:false, card:'HSBC TravelOne' },
+    { date:'15 May', merchant:'Big Boy Wine Merchant',          cat:'Food & Dining',        amount:7095,  credit:false, card:'HSBC TravelOne' },
+    { date:'15 May', merchant:'Blinkit',                        cat:'Grocery + QC',         amount:634,   credit:false, card:'HSBC TravelOne' },
+    { date:'15 May', merchant:'AtlasMarco',                     cat:'Subscriptions & Misc', amount:1914,  credit:false, card:'HSBC TravelOne' },
+    { date:'15 May', merchant:'Swiggy',                         cat:'Food & Dining',        amount:3361,  credit:false, card:'HSBC TravelOne' },
+    { date:'15 May', merchant:'BDC Eatopia',                    cat:'Food & Dining',        amount:2809,  credit:false, card:'HSBC TravelOne' },
+    { date:'16 May', merchant:'Big Boy Wine Merchant',          cat:'Food & Dining',        amount:3090,  credit:false, card:'HSBC TravelOne' },
+    { date:'16 May', merchant:'Blinkit',                        cat:'Grocery + QC',         amount:504,   credit:false, card:'HSBC TravelOne' },
+    { date:'16 May', merchant:'Effingut Breweries',             cat:'Food & Dining',        amount:1000,  credit:false, card:'HSBC TravelOne' },
+    { date:'16 May', merchant:'Swiggy',                         cat:'Food & Dining',        amount:2784,  credit:false, card:'HSBC TravelOne' },
+    { date:'17 May', merchant:'MakeMyTrip',                     cat:'Travel',               amount:7317,  credit:false, card:'HSBC TravelOne' },
+    { date:'17 May', merchant:'Maximize Pay (x2)',              cat:'Home Services',        amount:2000,  credit:false, card:'HSBC TravelOne' },
+    { date:'17 May', merchant:'Blinkit',                        cat:'Grocery + QC',         amount:511,   credit:false, card:'HSBC TravelOne' },
+    { date:'17 May', merchant:'Uber',                           cat:'Transport',            amount:338,   credit:false, card:'HSBC TravelOne' },
+    { date:'18 May', merchant:'AtlasMarco',                     cat:'Subscriptions & Misc', amount:2582,  credit:false, card:'HSBC TravelOne' },
+    { date:'18 May', merchant:'DSI Piramal',                    cat:'Subscriptions & Misc', amount:599,   credit:false, card:'HSBC TravelOne' },
+    { date:'18 May', merchant:'Uber (x2)',                      cat:'Transport',            amount:356,   credit:false, card:'HSBC TravelOne' },
+    { date:'18 May', merchant:'Reliance Brands',                cat:'Shopping',             amount:1092,  credit:false, card:'HSBC TravelOne' },
+    { date:'19 May', merchant:'Airtel',                         cat:'Subscriptions & Misc', amount:3539,  credit:false, card:'HSBC TravelOne' },
+    { date:'19 May', merchant:'Mumbai Duty-Free',               cat:'Travel',               amount:6884,  credit:false, card:'HSBC TravelOne' },
+    { date:'19 May', merchant:'Apollo Pharmacy',                cat:'Health',               amount:154,   credit:false, card:'HSBC TravelOne' },
+    { date:'22 May', merchant:'Uber',                           cat:'Transport',            amount:298,   credit:false, card:'HSBC TravelOne' },
+    { date:'22 May', merchant:'TopCashback (USD 50)',           cat:'Shopping',             amount:4786,  credit:false, card:'HSBC TravelOne' },
+    { date:'23 May', merchant:'Apple Store NYC (USD 271)',      cat:'Shopping',             amount:25947, credit:false, card:'HSBC TravelOne' },
+    { date:'23 May', merchant:'TopCashback (USD 200)',          cat:'Shopping',             amount:19142, credit:false, card:'HSBC TravelOne' },
+    { date:'24 May', merchant:'AtlasMarco (refund)',            cat:'Subscriptions & Misc', amount:1106,  credit:true,  card:'HSBC TravelOne' },
+    { date:'25 May', merchant:'CitizenM Hotel New York (USD 776)', cat:'Travel',            amount:74030, credit:false, card:'HSBC TravelOne' },
+    { date:'26 May', merchant:'Amazon (USD 10.96)',             cat:'Shopping',             amount:1045,  credit:false, card:'HSBC TravelOne' },
+    { date:'26 May', merchant:'Finance charges',               cat:'Subscriptions & Misc', amount:14149, credit:false, card:'HSBC TravelOne' },
+    { date:'26 May', merchant:'GST on EMI interest',           cat:'Subscriptions & Misc', amount:2636,  credit:false, card:'HSBC TravelOne' },
+    // ── Axis Atlas ──
+    { date:'2 May',  merchant:'Google Play',                    cat:'Subscriptions & Misc', amount:650,   credit:false, card:'Axis Atlas' },
+    { date:'6 May',  merchant:'Google Play',                    cat:'Subscriptions & Misc', amount:100,   credit:false, card:'Axis Atlas' },
+    { date:'9 May',  merchant:'Croma (electronics)',            cat:'Shopping',             amount:140904, credit:false, card:'Axis Atlas' },
+    { date:'10 May', merchant:'MakeMyTrip EMI 3/3 (final)',     cat:'Travel',               amount:6521,  credit:false, card:'Axis Atlas' },
+    { date:'10 May', merchant:'Swiggy',                         cat:'Food & Dining',        amount:388,   credit:false, card:'Axis Atlas' },
+    { date:'12 May', merchant:'Swiggy',                         cat:'Food & Dining',        amount:352,   credit:false, card:'Axis Atlas' },
+    { date:'12 May', merchant:'Upwork (PayPal)',                cat:'Subscriptions & Misc', amount:52620, credit:false, card:'Axis Atlas' },
+    { date:'12 May', merchant:'Maximal Ventures',               cat:'Subscriptions & Misc', amount:1574,  credit:false, card:'Axis Atlas' },
+    { date:'14 May', merchant:'DCC Markup + GST (forex)',       cat:'Subscriptions & Misc', amount:931,   credit:false, card:'Axis Atlas' },
+    { date:'16 May', merchant:'Swiggy',                         cat:'Food & Dining',        amount:5661,  credit:false, card:'Axis Atlas' },
+    { date:'20 May', merchant:'Reliance Retail',                cat:'Shopping',             amount:8965,  credit:false, card:'Axis Atlas' },
+    { date:'20 May', merchant:'Komorebi Tech',                  cat:'Subscriptions & Misc', amount:279,   credit:false, card:'Axis Atlas' },
+    { date:'21 May', merchant:'Claude.ai',                      cat:'Subscriptions & Misc', amount:2288,  credit:false, card:'Axis Atlas' },
+    { date:'21 May', merchant:'Bhatia Medical',                 cat:'Health',               amount:2295,  credit:false, card:'Axis Atlas' },
+    { date:'22 May', merchant:'Google Play',                    cat:'Subscriptions & Misc', amount:1999,  credit:false, card:'Axis Atlas' },
+    { date:'23 May', merchant:'Swiggy',                         cat:'Food & Dining',        amount:403,   credit:false, card:'Axis Atlas' },
+    { date:'23 May', merchant:'Amazon',                         cat:'Shopping',             amount:322,   credit:false, card:'Axis Atlas' },
+    { date:'23 May', merchant:'Target NYC (USD 163)',           cat:'Shopping',             amount:1709,  credit:false, card:'Axis Atlas' },
+    { date:'23 May', merchant:'Apple Store NYC (refund)',       cat:'Shopping',             amount:25936, credit:true,  card:'Axis Atlas' },
+    { date:'23 May', merchant:'Forex fee + GST',                cat:'Subscriptions & Misc', amount:94,    credit:false, card:'Axis Atlas' },
+    { date:'24 May', merchant:'Sephora.com',                    cat:'Shopping',             amount:13,    credit:false, card:'Axis Atlas' },
+    { date:'24 May', merchant:'CityFlo',                        cat:'Transport',            amount:35,    credit:false, card:'Axis Atlas' },
+    { date:'26 May', merchant:'Komorebi Tech (x2)',             cat:'Subscriptions & Misc', amount:543,   credit:false, card:'Axis Atlas' },
+    { date:'26 May', merchant:'Forex fees + GST',               cat:'Subscriptions & Misc', amount:1081,  credit:false, card:'Axis Atlas' },
+    { date:'27 May', merchant:'Komorebi Tech',                  cat:'Subscriptions & Misc', amount:269,   credit:false, card:'Axis Atlas' },
+    { date:'28 May', merchant:'Noa by the Nutcracker',          cat:'Food & Dining',        amount:1145,  credit:false, card:'Axis Atlas' },
+    { date:'29 May', merchant:'Swiggy',                         cat:'Food & Dining',        amount:818,   credit:false, card:'Axis Atlas' },
+    { date:'29 May', merchant:'Komorebi Tech',                  cat:'Subscriptions & Misc', amount:274,   credit:false, card:'Axis Atlas' },
+    { date:'30 May', merchant:'Apollo Hospitals',               cat:'Health',               amount:1950,  credit:false, card:'Axis Atlas' },
+    { date:'30 May', merchant:'Navi Mumbai Pharmacy',           cat:'Health',               amount:492,   credit:false, card:'Axis Atlas' },
+    { date:'31 May', merchant:'Namastey Salon',                 cat:'Shopping',             amount:11880, credit:false, card:'Axis Atlas' },
+    // ── Scapia Federal ──
+    { date:'25 May', merchant:"Scapia · Mar'26 EMI (2/3)",    cat:'Subscriptions & Misc', amount:20263, credit:false, card:'Scapia' },
+    // ── American Express Platinum Travel ──
+    { date:'1 May',  merchant:'Wellness Forever (Goa)',        cat:'Health',               amount:499,   credit:false, card:'AmEx Platinum' },
+    { date:'1 May',  merchant:'Wellness Forever (Goa)',        cat:'Health',               amount:589,   credit:false, card:'AmEx Platinum' },
+    { date:'3 May',  merchant:'F1.com (subscription, USD 4.99)', cat:'Subscriptions & Misc', amount:493, credit:false, card:'AmEx Platinum' },
+    { date:'7 May',  merchant:'Upwork (PayPal, USD 541)',      cat:'Subscriptions & Misc', amount:53370, credit:false, card:'AmEx Platinum' },
+    { date:'17 May', merchant:'CustCap Solutions',             cat:'Subscriptions & Misc', amount:2500,  credit:false, card:'AmEx Platinum' },
+  ]
+},
+  {
+    id: 'jun-2026',
+    label: 'Jun 2026',
+    period: '27 May – 26 Jun 2026',
+    minDue: 16763,
+    dueDate: '11 Jul 2026',
+    outstanding: 229923,
+    loanOutstanding: 14412,
+    loanNote: 'LOP 1002-1520 · 5 of 6 | Final EMI due Jul 2026 | Axis Neo due 12 Jul | Axis Atlas due ₹60,795 by 21 Jul',
+    addOnHolder: 'Sunita Yadav',
+    addOnGross: 0,
+    addOnNet: 0,
+    addOnNote: 'No add-on transactions this cycle',
+    addOnTxns: [],
+    txns: [
+      // ── HSBC TravelOne ──
+      { date:'22 Jun', merchant:'BBPS Payment',                   cat:'Payments',             amount:30000,  credit:true,  card:'HSBC TravelOne' },
+      { date:'26 May', merchant:'Google Store (USD 219)',         cat:'Shopping',             amount:20929, credit:false, card:'HSBC TravelOne' },
+      { date:'27 May', merchant:'Amazon US (USD 187)',            cat:'Shopping',             amount:17852, credit:false, card:'HSBC TravelOne' },
+      { date:'26 May', merchant:'Nutrabolt (USD 111)',            cat:'Health',               amount:10583, credit:false, card:'HSBC TravelOne' },
+      { date:'28 May', merchant:'CVS Pharmacy LA (USD 54)',       cat:'Health',               amount:5196,  credit:false, card:'HSBC TravelOne' },
+      { date:'29 May', merchant:'Airtel',                         cat:'Subscriptions & Misc', amount:1198,  credit:false, card:'HSBC TravelOne' },
+      { date:'29 May', merchant:'Very Vibrant Skin LLC (USD 30)', cat:'Shopping',             amount:2852,  credit:false, card:'HSBC TravelOne' },
+      { date:'30 May', merchant:'Coach (USD 326)',                cat:'Shopping',             amount:30987, credit:false, card:'HSBC TravelOne' },
+      { date:'31 May', merchant:'WH Smith Heathrow (GBP 44)',    cat:'Travel',               amount:5594,  credit:false, card:'HSBC TravelOne' },
+      { date:'2 Jun',  merchant:'Amazon Pay India',               cat:'Shopping',             amount:1203,  credit:false, card:'HSBC TravelOne' },
+      { date:'2 Jun',  merchant:'Blink Commerce (Swiggy Instamart)', cat:'Grocery + QC',    amount:384,   credit:false, card:'HSBC TravelOne' },
+      { date:'2 Jun',  merchant:'Uber',                           cat:'Transport',            amount:301,   credit:false, card:'HSBC TravelOne' },
+      { date:'2 Jun',  merchant:'Hostinger (USD 17)',             cat:'Subscriptions & Misc', amount:1569,  credit:false, card:'HSBC TravelOne' },
+      { date:'3 Jun',  merchant:'Amazon Pay India',               cat:'Shopping',             amount:25985, credit:false, card:'HSBC TravelOne' },
+      { date:'3 Jun',  merchant:'MaestroEdge',                   cat:'Subscriptions & Misc', amount:99,    credit:false, card:'HSBC TravelOne' },
+      { date:'3 Jun',  merchant:'Blink Commerce (Swiggy Instamart)', cat:'Grocery + QC',    amount:384,   credit:false, card:'HSBC TravelOne' },
+      { date:'3 Jun',  merchant:'Uber',                           cat:'Transport',            amount:288,   credit:false, card:'HSBC TravelOne' },
+      { date:'3 Jun',  merchant:'Uber',                           cat:'Transport',            amount:320,   credit:false, card:'HSBC TravelOne' },
+      { date:'4 Jun',  merchant:'Kieraya Furnishing',             cat:'Home & Furniture',     amount:7069,  credit:false, card:'HSBC TravelOne' },
+      { date:'5 Jun',  merchant:'Swiggy',                         cat:'Food & Dining',        amount:675,   credit:false, card:'HSBC TravelOne' },
+      { date:'5 Jun',  merchant:'Prithvish Restro Bar',           cat:'Food & Dining',        amount:4381,  credit:false, card:'HSBC TravelOne' },
+      { date:'5 Jun',  merchant:'Uber',                           cat:'Transport',            amount:108,   credit:false, card:'HSBC TravelOne' },
+      { date:'5 Jun',  merchant:'Uber',                           cat:'Transport',            amount:325,   credit:false, card:'HSBC TravelOne' },
+      { date:'6 Jun',  merchant:'MaestroEdge',                   cat:'Subscriptions & Misc', amount:129,   credit:false, card:'HSBC TravelOne' },
+      { date:'6 Jun',  merchant:'VIA Bombay (travel)',            cat:'Travel',               amount:3823,  credit:false, card:'HSBC TravelOne' },
+      { date:'6 Jun',  merchant:'Uber',                           cat:'Transport',            amount:50,    credit:false, card:'HSBC TravelOne' },
+      { date:'7 Jun',  merchant:'Swiggy',                         cat:'Food & Dining',        amount:12452, credit:false, card:'HSBC TravelOne' },
+      { date:'7 Jun',  merchant:'Uber',                           cat:'Transport',            amount:399,   credit:false, card:'HSBC TravelOne' },
+      { date:'7 Jun',  merchant:'Uber',                           cat:'Transport',            amount:354,   credit:false, card:'HSBC TravelOne' },
+      { date:'8 Jun',  merchant:'Blinkit',                        cat:'Grocery + QC',         amount:962,   credit:false, card:'HSBC TravelOne' },
+      { date:'9 Jun',  merchant:'Snabbit',                        cat:'Home Services',        amount:129,   credit:false, card:'HSBC TravelOne' },
+      { date:'10 Jun', merchant:'Lovable (AI tool)',              cat:'Subscriptions & Misc', amount:495,   credit:false, card:'HSBC TravelOne' },
+      { date:'11 Jun', merchant:'Uber',                           cat:'Transport',            amount:244,   credit:false, card:'HSBC TravelOne' },
+      { date:'11 Jun', merchant:'Uber',                           cat:'Transport',            amount:337,   credit:false, card:'HSBC TravelOne' },
+      { date:'12 Jun', merchant:'Uber',                           cat:'Transport',            amount:265,   credit:false, card:'HSBC TravelOne' },
+      { date:'14 Jun', merchant:'Amazon Pay India',               cat:'Shopping',             amount:9903,  credit:false, card:'HSBC TravelOne' },
+      { date:'14 Jun', merchant:'Uber',                           cat:'Transport',            amount:406,   credit:false, card:'HSBC TravelOne' },
+      { date:'16 Jun', merchant:'Swiggy',                         cat:'Food & Dining',        amount:853,   credit:false, card:'HSBC TravelOne' },
+      { date:'17 Jun', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel',           amount:26898, credit:false, card:'HSBC TravelOne' },
+      { date:'17 Jun', merchant:'Blinkit',                        cat:'Grocery + QC',         amount:299,   credit:false, card:'HSBC TravelOne' },
+      { date:'17 Jun', merchant:'One97 (Paytm)',                  cat:'Shopping',             amount:26771, credit:false, card:'HSBC TravelOne' },
+      { date:'18 Jun', merchant:'UrbanClap',                      cat:'Home Services',        amount:1658,  credit:false, card:'HSBC TravelOne' },
+      { date:'18 Jun', merchant:'Snabbit',                        cat:'Home Services',        amount:129,   credit:false, card:'HSBC TravelOne' },
+      { date:'18 Jun', merchant:'NMACC Food & Beverage',          cat:'Food & Dining',        amount:180,   credit:false, card:'HSBC TravelOne' },
+      { date:'18 Jun', merchant:'Swiggy',                         cat:'Food & Dining',        amount:420,   credit:false, card:'HSBC TravelOne' },
+      { date:'19 Jun', merchant:'Swiggy',                         cat:'Food & Dining',        amount:1691,  credit:false, card:'HSBC TravelOne' },
+      { date:'20 Jun', merchant:'Panchgaon Restaurant',           cat:'Food & Dining',        amount:3533,  credit:false, card:'HSBC TravelOne' },
+      { date:'23 Jun', merchant:'Snabbit',                        cat:'Home Services',        amount:109,   credit:false, card:'HSBC TravelOne' },
+      { date:'23 Jun', merchant:'Uber',                           cat:'Transport',            amount:251,   credit:false, card:'HSBC TravelOne' },
+      { date:'23 Jun', merchant:'Uber',                           cat:'Transport',            amount:288,   credit:false, card:'HSBC TravelOne' },
+      { date:'24 Jun', merchant:'Uber',                           cat:'Transport',            amount:447,   credit:false, card:'HSBC TravelOne' },
+      { date:'26 Jun', merchant:'LOP 1002-1520 EMI (5/6)',        cat:'Subscriptions & Misc', amount:14412, credit:false, card:'HSBC TravelOne' },
+      // ── Axis Neo Rupay ──
+      { date:'3 Jun',  merchant:'BBPS Payment',                   cat:'Payments',             amount:9032,   credit:true,  card:'Axis Neo Rupay' },
+      { date:'1 Jun',  merchant:'Naturals Belapur',               cat:'Home Services',        amount:350,   credit:false, card:'Axis Neo Rupay' },
+      { date:'2 Jun',  merchant:'Beneeco',                        cat:'Food & Dining',        amount:390,   credit:false, card:'Axis Neo Rupay' },
+      { date:'3 Jun',  merchant:'Dipti Varpe',                    cat:'Food & Dining',        amount:40,    credit:false, card:'Axis Neo Rupay' },
+      { date:'4 Jun',  merchant:'Chandrashekar',                  cat:'Subscriptions & Misc', amount:240,   credit:false, card:'Axis Neo Rupay' },
+      { date:'6 Jun',  merchant:'Aarti Gupta',                    cat:'Subscriptions & Misc', amount:27,    credit:false, card:'Axis Neo Rupay' },
+      { date:'6 Jun',  merchant:'Effingut Breweries',             cat:'Food & Dining',        amount:1489,  credit:false, card:'Axis Neo Rupay' },
+      { date:'8 Jun',  merchant:'Bharat Kumar',                   cat:'Food & Dining',        amount:24,    credit:false, card:'Axis Neo Rupay' },
+      { date:'9 Jun',  merchant:'Dipti Varpe',                    cat:'Food & Dining',        amount:45,    credit:false, card:'Axis Neo Rupay' },
+      { date:'10 Jun', merchant:'Bharat Kumar',                   cat:'Food & Dining',        amount:36,    credit:false, card:'Axis Neo Rupay' },
+      { date:'10 Jun', merchant:'Shreeji Pharma',                 cat:'Health',               amount:145,   credit:false, card:'Axis Neo Rupay' },
+      { date:'10 Jun', merchant:'Hotel Bhagat Tarachand',         cat:'Food & Dining',        amount:126,   credit:false, card:'Axis Neo Rupay' },
+      { date:'11 Jun', merchant:'Airtel',                         cat:'Subscriptions & Misc', amount:1049,  credit:false, card:'Axis Neo Rupay' },
+      { date:'12 Jun', merchant:"Domino's Pizza",                 cat:'Food & Dining',        amount:1695,  credit:false, card:'Axis Neo Rupay' },
+      { date:'13 Jun', merchant:'Murli',                          cat:'Food & Dining',        amount:200,   credit:false, card:'Axis Neo Rupay' },
+      { date:'13 Jun', merchant:'Saheel Beer Shop',               cat:'Food & Dining',        amount:770,   credit:false, card:'Axis Neo Rupay' },
+      { date:'15 Jun', merchant:'Bharat Kumar',                   cat:'Food & Dining',        amount:12,    credit:false, card:'Axis Neo Rupay' },
+      { date:'16 Jun', merchant:'PVR Inox',                       cat:'Subscriptions & Misc', amount:1330,  credit:false, card:'Axis Neo Rupay' },
+      { date:'16 Jun', merchant:'Beneeco',                        cat:'Food & Dining',        amount:270,   credit:false, card:'Axis Neo Rupay' },
+      { date:'16 Jun', merchant:'PVR Inox',                       cat:'Subscriptions & Misc', amount:540,   credit:false, card:'Axis Neo Rupay' },
+      { date:'17 Jun', merchant:'Reliance (fuel)',                 cat:'Transport',            amount:150,   credit:false, card:'Axis Neo Rupay' },
+      { date:'18 Jun', merchant:'Reliance (fuel)',                 cat:'Transport',            amount:150,   credit:false, card:'Axis Neo Rupay' },
+      { date:'18 Jun', merchant:'Lenskart',                       cat:'Shopping',             amount:1618,  credit:false, card:'Axis Neo Rupay' },
+      { date:'18 Jun', merchant:'Beneeco',                        cat:'Food & Dining',        amount:110,   credit:false, card:'Axis Neo Rupay' },
+      { date:'19 Jun', merchant:'Sharad Kale (services)',         cat:'Subscriptions & Misc', amount:240,   credit:false, card:'Axis Neo Rupay' },
+      { date:'21 Jun', merchant:'Krispy Kreme',                   cat:'Food & Dining',        amount:380,   credit:false, card:'Axis Neo Rupay' },
+      { date:'22 Jun', merchant:'Saheel Beer Shop',               cat:'Food & Dining',        amount:1845,  credit:false, card:'Axis Neo Rupay' },
+      { date:'22 Jun', merchant:'Dhirendra Kumar',                cat:'Food & Dining',        amount:50,    credit:false, card:'Axis Neo Rupay' },
+      { date:'22 Jun', merchant:'Beneeco',                        cat:'Food & Dining',        amount:370,   credit:false, card:'Axis Neo Rupay' },
+      // ── Axis Atlas ──
+      { date:'3 Jun',  merchant:'BBPS Payment (x3)',              cat:'Payments',             amount:220651, credit:true,  card:'Axis Atlas' },
+      { date:'2 Jun',  merchant:'Google Play (content)',          cat:'Subscriptions & Misc', amount:650,   credit:false, card:'Axis Atlas' },
+      { date:'4 Jun',  merchant:'YouTube',                        cat:'Subscriptions & Misc', amount:299,   credit:false, card:'Axis Atlas' },
+      { date:'6 Jun',  merchant:'Google Play (app)',               cat:'Subscriptions & Misc', amount:100,   credit:false, card:'Axis Atlas' },
+      { date:'11 Jun', merchant:'YouTube',                        cat:'Subscriptions & Misc', amount:479,   credit:false, card:'Axis Atlas' },
+      { date:'1 Jun',  merchant:'BDC Eatopia',                    cat:'Food & Dining',        amount:2006,  credit:false, card:'Axis Atlas' },
+      { date:'4 Jun',  merchant:'Uber (x2)',                      cat:'Transport',            amount:418,   credit:false, card:'Axis Atlas' },
+      { date:'4 Jun',  merchant:'Ola',                             cat:'Transport',            amount:1100,  credit:false, card:'Axis Atlas' },
+      { date:'5 Jun',  merchant:'Uber (x2)',                      cat:'Transport',            amount:479,   credit:false, card:'Axis Atlas' },
+      { date:'7 Jun',  merchant:'Uber',                            cat:'Transport',            amount:58,    credit:false, card:'Axis Atlas' },
+      { date:'8 Jun',  merchant:'Swiggy',                          cat:'Food & Dining',        amount:826,   credit:false, card:'Axis Atlas' },
+      { date:'8 Jun',  merchant:'Uber',                            cat:'Transport',            amount:375,   credit:false, card:'Axis Atlas' },
+      { date:'11 Jun', merchant:'Uber',                            cat:'Transport',            amount:471,   credit:false, card:'Axis Atlas' },
+      { date:'12 Jun', merchant:'Zepto (x2)',                      cat:'Grocery + QC',         amount:379,   credit:false, card:'Axis Atlas' },
+      { date:'12 Jun', merchant:'Swiggy',                          cat:'Food & Dining',        amount:1290,  credit:false, card:'Axis Atlas' },
+      { date:'13 Jun', merchant:'Zepto',                           cat:'Grocery + QC',         amount:186,   credit:false, card:'Axis Atlas' },
+      { date:'15 Jun', merchant:'Le Salon Cafe',                   cat:'Food & Dining',        amount:5038,  credit:false, card:'Axis Atlas' },
+      { date:'15 Jun', merchant:'Swiggy',                          cat:'Food & Dining',        amount:883,   credit:false, card:'Axis Atlas' },
+      { date:'16 Jun', merchant:'Femtoarts',                       cat:'Shopping',             amount:1999,  credit:false, card:'Axis Atlas' },
+      { date:'17 Jun', merchant:'Healthmart Chemist',              cat:'Health',               amount:713,   credit:false, card:'Axis Atlas' },
+      { date:'17 Jun', merchant:'Skin Aura',                       cat:'Health',               amount:800,   credit:false, card:'Axis Atlas' },
+      { date:'17 Jun', merchant:'Third Wave Coffee',               cat:'Food & Dining',        amount:315,   credit:false, card:'Axis Atlas' },
+      { date:'18 Jun', merchant:'NMACC Food & Beverage (x2)',      cat:'Food & Dining',        amount:1740,  credit:false, card:'Axis Atlas' },
+      { date:'18 Jun', merchant:'Uber',                            cat:'Transport',            amount:213,   credit:false, card:'Axis Atlas' },
+      { date:'18 Jun', merchant:'Swiggy',                          cat:'Food & Dining',        amount:774,   credit:false, card:'Axis Atlas' },
+      { date:'19 Jun', merchant:'Uber (x3)',                       cat:'Transport',            amount:1012,  credit:false, card:'Axis Atlas' },
+      { date:'20 Jun', merchant:'Subko Coffee',                    cat:'Food & Dining',        amount:1019,  credit:false, card:'Axis Atlas' },
+      { date:'20 Jun', merchant:'Uber (x2)',                       cat:'Transport',            amount:670,   credit:false, card:'Axis Atlas' },
+      { date:'21 Jun', merchant:'Anthropic Claude Sub (USD 23.60)', cat:'Subscriptions & Misc', amount:2231, credit:false, card:'Axis Atlas' },
+      { date:'21 Jun', merchant:'Encalm Hospitality (lounge, x2)', cat:'Travel',               amount:3700,  credit:false, card:'Axis Atlas' },
+      { date:'22 Jun', merchant:'Google Play (app)',               cat:'Subscriptions & Misc', amount:1999,  credit:false, card:'Axis Atlas' },
+      { date:'23 Jun', merchant:'Forex fee + GST',                 cat:'Subscriptions & Misc', amount:92,    credit:false, card:'Axis Atlas' },
+      { date:'23 Jun', merchant:'Uber',                            cat:'Transport',            amount:378,   credit:false, card:'Axis Atlas' },
+      { date:'24 Jun', merchant:'STRCH (clothing)',                cat:'Shopping',             amount:1349,  credit:false, card:'Axis Atlas' },
+      { date:'24 Jun', merchant:'Maximize Pay (cleaning)',         cat:'Home Services',        amount:1597,  credit:false, card:'Axis Atlas' },
+      { date:'24 Jun', merchant:'Bundl Technologies (Swiggy)',     cat:'Food & Dining',        amount:329,   credit:false, card:'Axis Atlas' },
+      { date:'24 Jun', merchant:'Uber',                            cat:'Transport',            amount:407,   credit:false, card:'Axis Atlas' },
+      { date:'24 Jun', merchant:'Swiggy',                          cat:'Food & Dining',        amount:944,   credit:false, card:'Axis Atlas' },
+      { date:'25 Jun', merchant:'Zepto',                           cat:'Grocery + QC',         amount:823,   credit:false, card:'Axis Atlas' },
+      { date:'25 Jun', merchant:'Uber (x2)',                       cat:'Transport',            amount:918,   credit:false, card:'Axis Atlas' },
+      { date:'25 Jun', merchant:'Bellissimo Studio (salon)',       cat:'Shopping',             amount:4725,  credit:false, card:'Axis Atlas' },
+      { date:'27 Jun', merchant:'M S S S Wines',                   cat:'Food & Dining',        amount:1790,  credit:false, card:'Axis Atlas' },
+      { date:'27 Jun', merchant:'Uber (x3)',                       cat:'Transport',            amount:816,   credit:false, card:'Axis Atlas' },
+      { date:'28 Jun', merchant:'Abhishek Chou (restaurant)',      cat:'Food & Dining',        amount:418,   credit:false, card:'Axis Atlas' },
+      { date:'28 Jun', merchant:'Suhas Dhavle (food)',             cat:'Food & Dining',        amount:1291,  credit:false, card:'Axis Atlas' },
+      { date:'28 Jun', merchant:'Society Stores',                  cat:'Grocery + QC',         amount:623,   credit:false, card:'Axis Atlas' },
+      { date:'29 Jun', merchant:'Maximize Pay (cleaning)',         cat:'Home Services',        amount:6644,  credit:false, card:'Axis Atlas' },
+      { date:'29 Jun', merchant:'Lovable (AI tool)',               cat:'Subscriptions & Misc', amount:1416,  credit:false, card:'Axis Atlas' },
+      { date:'29 Jun', merchant:'Swiggy',                          cat:'Food & Dining',        amount:894,   credit:false, card:'Axis Atlas' },
+      { date:'29 Jun', merchant:'Ola',                             cat:'Transport',            amount:474,   credit:false, card:'Axis Atlas' },
+      { date:'29 Jun', merchant:'Uber',                            cat:'Transport',            amount:392,   credit:false, card:'Axis Atlas' },
+      { date:'30 Jun', merchant:'Uber',                            cat:'Transport',            amount:382,   credit:false, card:'Axis Atlas' },
+      { date:'1 Jul',  merchant:'Forex fee + GST',                 cat:'Subscriptions & Misc', amount:58,    credit:false, card:'Axis Atlas' },
+    ]
+  }
+  ,{
+    id: 'jul-2026',
+    label: 'Jul 2026',
+    period: '27 Jun – 31 Jul 2026',
+    minDue: 18018,
+    dueDate: '10 Aug 2026',
+    outstanding: 247651,
+    openingBalance: 291439,
+    billPaid: 277027,
+    carryForward: 14412,
+    carryForwardNote: 'Final LOP EMI 6/6, unpaid at June close',
+    loanOutstanding: 0,
+    loanNote: 'LOP 1002-1520 EMI closed (6 of 6) | HSBC ₹1,42,022 due 10 Aug · Axis Atlas ₹1,05,629 due 21 Aug',
+    addOnHolder: 'Sunita Yadav',
+    addOnGross: 22908,
+    addOnNet: 22908,
+    addOnNote: 'Fashion & lifestyle — BookMyShow, Myntra, Shoe Villa, Aditya Birla Lifestyle (x4)',
+    addOnTxns: [
+      { date:'3 Jul',  merchant:'BookMyShow',            amount:760,  credit:false },
+      { date:'10 Jul', merchant:'Myntra',                amount:2264, credit:false },
+      { date:'11 Jul', merchant:'BookMyShow',            amount:760,  credit:false },
+      { date:'17 Jul', merchant:'Shoe Villa',            amount:2299, credit:false },
+      { date:'20 Jul', merchant:'Aditya Birla Lifestyle', amount:1825, credit:false },
+      { date:'20 Jul', merchant:'Aditya Birla Lifestyle', amount:5000, credit:false },
+      { date:'20 Jul', merchant:'Aditya Birla Lifestyle', amount:5000, credit:false },
+      { date:'20 Jul', merchant:'Aditya Birla Lifestyle', amount:5000, credit:false },
+    ],
+    txns: [
+      // ── HSBC TravelOne ──
+      { date:'26 Jun', merchant:'Snabbit',                        cat:'Home Services',        amount:109,    credit:false, card:'HSBC TravelOne' },
+      { date:'26 Jun', merchant:'Uber',                            cat:'Transport',            amount:281,    credit:false, card:'HSBC TravelOne' },
+      { date:'27 Jun', merchant:'Sharayu Motors',                  cat:'Transport',            amount:13758,  credit:false, card:'HSBC TravelOne' },
+      { date:'27 Jun', merchant:'Blinkit',                         cat:'Grocery + QC',         amount:264,    credit:false, card:'HSBC TravelOne' },
+      { date:'27 Jun', merchant:'Uber',                            cat:'Transport',            amount:396,    credit:false, card:'HSBC TravelOne' },
+      { date:'30 Jun', merchant:'Snabbit',                         cat:'Home Services',        amount:129,    credit:false, card:'HSBC TravelOne' },
+      { date:'30 Jun', merchant:'Swiggy',                          cat:'Food & Dining',        amount:920,    credit:false, card:'HSBC TravelOne' },
+      { date:'30 Jun', merchant:'Amazon Pay India',                cat:'Shopping',             amount:2477,   credit:false, card:'HSBC TravelOne' },
+      { date:'1 Jul',  merchant:'Banana Leaf (restaurant)',        cat:'Food & Dining',        amount:1205,   credit:false, card:'HSBC TravelOne' },
+      { date:'1 Jul',  merchant:'Uber',                            cat:'Transport',            amount:45,     credit:false, card:'HSBC TravelOne' },
+      { date:'1 Jul',  merchant:'Uber',                            cat:'Transport',            amount:592,    credit:false, card:'HSBC TravelOne' },
+      { date:'2 Jul',  merchant:'BBPS Payment',                    cat:'Payments',             amount:216232, credit:true,  card:'HSBC TravelOne' },
+      { date:'2 Jul',  merchant:'Fireflies.ai (USD 18)',           cat:'Subscriptions & Misc', amount:1715,   credit:false, card:'HSBC TravelOne' },
+      { date:'2 Jul',  merchant:'Forex fee + GST',                 cat:'Subscriptions & Misc', amount:71,     credit:false, card:'HSBC TravelOne' },
+      { date:'2 Jul',  merchant:'Swiggy',                          cat:'Food & Dining',        amount:1396,   credit:false, card:'HSBC TravelOne' },
+      { date:'2 Jul',  merchant:'Amazon Pay India',                cat:'Shopping',             amount:374,    credit:false, card:'HSBC TravelOne' },
+      { date:'2 Jul',  merchant:'Swiggy',                          cat:'Food & Dining',        amount:1487,   credit:false, card:'HSBC TravelOne' },
+      { date:'2 Jul',  merchant:'MaestroEdge',                     cat:'Subscriptions & Misc', amount:148,    credit:false, card:'HSBC TravelOne' },
+      { date:'2 Jul',  merchant:'Blinkit',                         cat:'Grocery + QC',         amount:373,    credit:false, card:'HSBC TravelOne' },
+      { date:'3 Jul',  merchant:'Tata 1mg',                        cat:'Health',               amount:1630,   credit:false, card:'HSBC TravelOne' },
+      { date:'3 Jul',  merchant:'Kieraya Furnishing',              cat:'Subscriptions & Misc', amount:6607,   credit:false, card:'HSBC TravelOne' },
+      { date:'3 Jul',  merchant:'Forex fee + GST',                 cat:'Subscriptions & Misc', amount:17,     credit:false, card:'HSBC TravelOne' },
+      { date:'4 Jul',  merchant:'MS Boojee Cafe',                  cat:'Food & Dining',        amount:2347,   credit:false, card:'HSBC TravelOne' },
+      { date:'4 Jul',  merchant:'Broadway Think9 Retail',          cat:'Shopping',             amount:2800,   credit:false, card:'HSBC TravelOne' },
+      { date:'4 Jul',  merchant:'Uber',                            cat:'Transport',            amount:229,    credit:false, card:'HSBC TravelOne' },
+      { date:'4 Jul',  merchant:'Amazon Pay India',                cat:'Shopping',             amount:494,    credit:false, card:'HSBC TravelOne' },
+      { date:'4 Jul',  merchant:'Uber',                            cat:'Transport',            amount:660,    credit:false, card:'HSBC TravelOne' },
+      { date:'5 Jul',  merchant:'Uber',                            cat:'Transport',            amount:290,    credit:false, card:'HSBC TravelOne' },
+      { date:'5 Jul',  merchant:'Tata 1mg (refund)',                cat:'Health',               amount:111,    credit:true,  card:'HSBC TravelOne' },
+      { date:'5 Jul',  merchant:'Amazon Seller Services',          cat:'Shopping',             amount:308,    credit:false, card:'HSBC TravelOne' },
+      { date:'5 Jul',  merchant:'Amazon Seller Services',          cat:'Shopping',             amount:1424,   credit:false, card:'HSBC TravelOne' },
+      { date:'6 Jul',  merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel',            amount:15738,  credit:false, card:'HSBC TravelOne' },
+      { date:'8 Jul',  merchant:'Amazon Pay India',                cat:'Shopping',             amount:244,    credit:false, card:'HSBC TravelOne' },
+      { date:'9 Jul',  merchant:'MakeMyTrip',                      cat:'Travel',               amount:1051,   credit:false, card:'HSBC TravelOne' },
+      { date:'9 Jul',  merchant:'Uber',                            cat:'Transport',            amount:16,     credit:false, card:'HSBC TravelOne' },
+      { date:'9 Jul',  merchant:'Uber',                            cat:'Transport',            amount:801,    credit:false, card:'HSBC TravelOne' },
+      { date:'9 Jul',  merchant:'Uber',                            cat:'Transport',            amount:474,    credit:false, card:'HSBC TravelOne' },
+      { date:'9 Jul',  merchant:'PrimeMover Mobility',             cat:'Travel',               amount:3400,   credit:false, card:'HSBC TravelOne' },
+      { date:'9 Jul',  merchant:'Air India',                       cat:'Travel',               amount:3316,   credit:false, card:'HSBC TravelOne' },
+      { date:'10 Jul', merchant:'Uber',                            cat:'Transport',            amount:447,    credit:false, card:'HSBC TravelOne' },
+      { date:'11 Jul', merchant:'Swiggy',                          cat:'Food & Dining',        amount:3473,   credit:false, card:'HSBC TravelOne' },
+      { date:'12 Jul', merchant:'Forex fee + GST',                 cat:'Subscriptions & Misc', amount:8,      credit:false, card:'HSBC TravelOne' },
+      { date:'12 Jul', merchant:'Uber',                            cat:'Transport',            amount:3,      credit:false, card:'HSBC TravelOne' },
+      { date:'12 Jul', merchant:'Uber',                            cat:'Transport',            amount:617,    credit:false, card:'HSBC TravelOne' },
+      { date:'12 Jul', merchant:'Swiggy',                          cat:'Food & Dining',        amount:274,    credit:false, card:'HSBC TravelOne' },
+      { date:'13 Jul', merchant:'Swiggy',                          cat:'Food & Dining',        amount:1410,   credit:false, card:'HSBC TravelOne' },
+      { date:'13 Jul', merchant:'Uber',                            cat:'Transport',            amount:337,    credit:false, card:'HSBC TravelOne' },
+      { date:'13 Jul', merchant:'Uber',                            cat:'Transport',            amount:376,    credit:false, card:'HSBC TravelOne' },
+      { date:'14 Jul', merchant:'Uber',                            cat:'Transport',            amount:345,    credit:false, card:'HSBC TravelOne' },
+      { date:'14 Jul', merchant:'Blinkit',                         cat:'Grocery + QC',         amount:1761,   credit:false, card:'HSBC TravelOne' },
+      { date:'14 Jul', merchant:'PrimeMover Mobility',             cat:'Travel',               amount:14131,  credit:false, card:'HSBC TravelOne' },
+      { date:'14 Jul', merchant:'Uber',                            cat:'Transport',            amount:503,    credit:false, card:'HSBC TravelOne' },
+      { date:'19 Jul', merchant:'UrbanClap',                       cat:'Home Services',        amount:3876,   credit:false, card:'HSBC TravelOne' },
+      { date:'19 Jul', merchant:'Uber',                            cat:'Transport',            amount:202,    credit:false, card:'HSBC TravelOne' },
+      { date:'20 Jul', merchant:'Uber',                            cat:'Transport',            amount:383,    credit:false, card:'HSBC TravelOne' },
+      { date:'20 Jul', merchant:'Uber',                            cat:'Transport',            amount:258,    credit:false, card:'HSBC TravelOne' },
+      { date:'20 Jul', merchant:'Uber',                            cat:'Transport',            amount:195,    credit:false, card:'HSBC TravelOne' },
+      { date:'21 Jul', merchant:'Amazon Seller Services',          cat:'Shopping',             amount:4004,   credit:false, card:'HSBC TravelOne' },
+      { date:'24 Jul', merchant:'Tata 1mg',                        cat:'Health',               amount:2021,   credit:false, card:'HSBC TravelOne' },
+      { date:'24 Jul', merchant:'Swiggy',                          cat:'Food & Dining',        amount:300,    credit:false, card:'HSBC TravelOne' },
+      { date:'24 Jul', merchant:'Uber',                            cat:'Transport',            amount:336,    credit:false, card:'HSBC TravelOne' },
+      { date:'25 Jul', merchant:'M S Tab (restaurant)',            cat:'Food & Dining',        amount:1575,   credit:false, card:'HSBC TravelOne' },
+      { date:'25 Jul', merchant:'Uber',                            cat:'Transport',            amount:353,    credit:false, card:'HSBC TravelOne' },
+      { date:'26 Jul', merchant:'LOP 1002-1520 EMI GST (6/6 final)', cat:'Subscriptions & Misc', amount:30,   credit:false, card:'HSBC TravelOne' },
+      // ── Axis Atlas (2 – 31 Jul, billed 21 Aug) ──
+      { date:'2 Jul',    merchant:'Google Play',                   cat:'Subscriptions & Misc',   amount:650,    credit:false, card:'Axis Atlas' },
+      { date:'4 Jul',    merchant:'Uber',                          cat:'Transport',              amount:576,    credit:false, card:'Axis Atlas' },
+      { date:'4 Jul',    merchant:'Foodstories',                   cat:'Food & Dining',          amount:1687,   credit:false, card:'Axis Atlas' },
+      { date:'4 Jul',    merchant:'YouTube',                       cat:'Subscriptions & Misc',   amount:299,    credit:false, card:'Axis Atlas' },
+      { date:'4 Jul',    merchant:'Broadway Think9',               cat:'Shopping',               amount:700,    credit:false, card:'Axis Atlas' },
+      { date:'6 Jul',    merchant:'Google Play',                   cat:'Subscriptions & Misc',   amount:100,    credit:false, card:'Axis Atlas' },
+      { date:'7 Jul',    merchant:'H&M',                           cat:'Shopping',               amount:1499,   credit:false, card:'Axis Atlas' },
+      { date:'8 Jul',    merchant:'Swiggy',                        cat:'Food & Dining',          amount:363,    credit:false, card:'Axis Atlas' },
+      { date:'8 Jul',    merchant:'Uber',                          cat:'Transport',              amount:206,    credit:false, card:'Axis Atlas' },
+      { date:'8 Jul',    merchant:'GoDaddy',                       cat:'Subscriptions & Misc',   amount:1047,   credit:false, card:'Axis Atlas' },
+      { date:'8 Jul',    merchant:'Uber',                          cat:'Transport',              amount:153,    credit:false, card:'Axis Atlas' },
+      { date:'9 Jul',    merchant:'Starbucks',                     cat:'Food & Dining',          amount:987,    credit:false, card:'Axis Atlas' },
+      { date:'9 Jul',    merchant:'Maximize Pay (cleaning)',       cat:'Home Services',          amount:8999,   credit:false, card:'Axis Atlas' },
+      { date:'9 Jul',    merchant:'Zepto',                         cat:'Grocery + QC',           amount:490,    credit:false, card:'Axis Atlas' },
+      { date:'9 Jul',    merchant:'Westside',                      cat:'Shopping',               amount:11401,  credit:false, card:'Axis Atlas' },
+      { date:'11 Jul',   merchant:'YouTube',                       cat:'Subscriptions & Misc',   amount:479,    credit:false, card:'Axis Atlas' },
+      { date:'11 Jul',   merchant:'Zepto',                         cat:'Grocery + QC',           amount:414,    credit:false, card:'Axis Atlas' },
+      { date:'12 Jul',   merchant:'Seela Mart',                    cat:'Grocery + QC',           amount:1965,   credit:false, card:'Axis Atlas' },
+      { date:'12 Jul',   merchant:'Eosco Business Solutions',      cat:'Subscriptions & Misc',   amount:788,    credit:false, card:'Axis Atlas' },
+      { date:'12 Jul',   merchant:'Le Kene',                       cat:'Food & Dining',          amount:715,    credit:false, card:'Axis Atlas' },
+      { date:'12 Jul',   merchant:'Blossom Book House',            cat:'Shopping',               amount:930,    credit:false, card:'Axis Atlas' },
+      { date:'12 Jul',   merchant:'Lavonne',                       cat:'Food & Dining',          amount:3129,   credit:false, card:'Axis Atlas' },
+      { date:'13 Jul',   merchant:'Third Wave Coffee',             cat:'Food & Dining',          amount:229,    credit:false, card:'Axis Atlas' },
+      { date:'14 Jul',   merchant:'Starbucks',                     cat:'Food & Dining',          amount:310,    credit:false, card:'Axis Atlas' },
+      { date:'14 Jul',   merchant:'Attys Bakery',                  cat:'Food & Dining',          amount:399,    credit:false, card:'Axis Atlas' },
+      { date:'14 Jul',   merchant:'MTR Maiyas',                    cat:'Food & Dining',          amount:970,    credit:false, card:'Axis Atlas' },
+      { date:'14 Jul',   merchant:'EazyDiner',                     cat:'Food & Dining',          amount:3138,   credit:false, card:'Axis Atlas' },
+      { date:'14 Jul',   merchant:'Beamer Food & Beverage',        cat:'Food & Dining',          amount:198,    credit:false, card:'Axis Atlas' },
+      { date:'15 Jul',   merchant:'Prathiba A (food)',             cat:'Food & Dining',          amount:5109,   credit:false, card:'Axis Atlas' },
+      { date:'15 Jul',   merchant:'Everest Filling Station',       cat:'Transport',              amount:3841,   credit:false, card:'Axis Atlas' },
+      { date:'16 Jul',   merchant:'Sterling Holiday Resort',       cat:'Travel',                 amount:4002,   credit:false, card:'Axis Atlas' },
+      { date:'16 Jul',   merchant:'M S Jayaraj Ventures',          cat:'Food & Dining',          amount:1491,   credit:false, card:'Axis Atlas' },
+      { date:'16 Jul',   merchant:'Fuel Cashback',                 cat:'Transport',              amount:38,     credit:true,  card:'Axis Atlas' },
+      { date:'17 Jul',   merchant:'Moddys Retail',                 cat:'Shopping',               amount:3303,   credit:false, card:'Axis Atlas' },
+      { date:'18 Jul',   merchant:'Sree Anand Energy (fuel)',      cat:'Transport',              amount:505,    credit:false, card:'Axis Atlas' },
+      { date:'18 Jul',   merchant:'Hill Country Hotels',           cat:'Travel',                 amount:1239,   credit:false, card:'Axis Atlas' },
+      { date:'18 Jul',   merchant:'Hebbal Cafe',                   cat:'Food & Dining',          amount:5723,   credit:false, card:'Axis Atlas' },
+      { date:'18 Jul',   merchant:'Uber',                          cat:'Transport',              amount:561,    credit:false, card:'Axis Atlas' },
+      { date:'18 Jul',   merchant:'BBPS Payment',                  cat:'Payments',               amount:60795,  credit:true,  card:'Axis Atlas' },
+      { date:'19 Jul',   merchant:'Uber',                          cat:'Transport',              amount:519,    credit:false, card:'Axis Atlas' },
+      { date:'19 Jul',   merchant:'Fuel Cashback',                 cat:'Transport',              amount:5,      credit:true,  card:'Axis Atlas' },
+      { date:'20 Jul',   merchant:'Zepto',                         cat:'Grocery + QC',           amount:187,    credit:false, card:'Axis Atlas' },
+      { date:'20 Jul',   merchant:'Zepto',                         cat:'Grocery + QC',           amount:194,    credit:false, card:'Axis Atlas' },
+      { date:'20 Jul',   merchant:'Zepto',                         cat:'Grocery + QC',           amount:99,     credit:false, card:'Axis Atlas' },
+      { date:'21 Jul',   merchant:'Anthropic Claude',              cat:'Subscriptions & Misc',   amount:2278,   credit:false, card:'Axis Atlas' },
+      { date:'21 Jul',   merchant:'Uber',                          cat:'Transport',              amount:282,    credit:false, card:'Axis Atlas' },
+      { date:'22 Jul',   merchant:'Google Play',                   cat:'Subscriptions & Misc',   amount:1999,   credit:false, card:'Axis Atlas' },
+      { date:'22 Jul',   merchant:'Uber',                          cat:'Transport',              amount:215,    credit:false, card:'Axis Atlas' },
+      { date:'22 Jul',   merchant:'Akshata Sagar Shetty (food)',   cat:'Food & Dining',          amount:2100,   credit:false, card:'Axis Atlas' },
+      { date:'22 Jul',   merchant:'Uber',                          cat:'Transport',              amount:45,     credit:false, card:'Axis Atlas' },
+      { date:'23 Jul',   merchant:'Zepto',                         cat:'Grocery + QC',           amount:416,    credit:false, card:'Axis Atlas' },
+      { date:'23 Jul',   merchant:'Swiggy',                        cat:'Food & Dining',          amount:661,    credit:false, card:'Axis Atlas' },
+      { date:'23 Jul',   merchant:'Forex fee + GST',               cat:'Subscriptions & Misc',   amount:94,     credit:false, card:'Axis Atlas' },
+      { date:'24 Jul',   merchant:'Zepto',                         cat:'Grocery + QC',           amount:758,    credit:false, card:'Axis Atlas' },
+      { date:'24 Jul',   merchant:'Uber',                          cat:'Transport',              amount:398,    credit:false, card:'Axis Atlas' },
+      { date:'25 Jul',   merchant:'Starbucks',                     cat:'Food & Dining',          amount:299,    credit:false, card:'Axis Atlas' },
+      { date:'25 Jul',   merchant:'Uniqlo',                        cat:'Shopping',               amount:1780,   credit:false, card:'Axis Atlas' },
+      { date:'25 Jul',   merchant:'Nature\'s Basket',              cat:'Grocery + QC',           amount:2243,   credit:false, card:'Axis Atlas' },
+      { date:'25 Jul',   merchant:'Le Salon Cafe',                 cat:'Food & Dining',          amount:578,    credit:false, card:'Axis Atlas' },
+      { date:'25 Jul',   merchant:'Zara',                          cat:'Shopping',               amount:11200,  credit:false, card:'Axis Atlas' },
+      { date:'26 Jul',   merchant:'Uber',                          cat:'Transport',              amount:45,     credit:false, card:'Axis Atlas' },
+      { date:'26 Jul',   merchant:'H&M',                           cat:'Shopping',               amount:2999,   credit:false, card:'Axis Atlas' },
+      { date:'26 Jul',   merchant:'Uber',                          cat:'Transport',              amount:210,    credit:false, card:'Axis Atlas' },
+      { date:'26 Jul',   merchant:'M S Dhora (restaurant)',        cat:'Food & Dining',          amount:1800,   credit:false, card:'Axis Atlas' },
+      { date:'26 Jul',   merchant:'Swiggy',                        cat:'Food & Dining',          amount:318,    credit:false, card:'Axis Atlas' },
+      { date:'26 Jul',   merchant:'Swiggy',                        cat:'Food & Dining',          amount:420,    credit:false, card:'Axis Atlas' },
+      { date:'26 Jul',   merchant:'Zepto',                         cat:'Grocery + QC',           amount:1679,   credit:false, card:'Axis Atlas' },
+      { date:'27 Jul',   merchant:'Uber',                          cat:'Transport',              amount:473,    credit:false, card:'Axis Atlas' },
+      { date:'28 Jul',   merchant:'Uber',                          cat:'Transport',              amount:248,    credit:false, card:'Axis Atlas' },
+      { date:'28 Jul',   merchant:'Zepto',                         cat:'Grocery + QC',           amount:989,    credit:false, card:'Axis Atlas' },
+      { date:'29 Jul',   merchant:'Uber',                          cat:'Transport',              amount:272,    credit:false, card:'Axis Atlas' },
+      { date:'29 Jul',   merchant:'Zepto',                         cat:'Grocery + QC',           amount:169,    credit:false, card:'Axis Atlas' },
+      { date:'29 Jul',   merchant:'Uber',                          cat:'Transport',              amount:321,    credit:false, card:'Axis Atlas' },
+      { date:'30 Jul',   merchant:'Uber',                          cat:'Transport',              amount:149,    credit:false, card:'Axis Atlas' },
+      { date:'31 Jul',   merchant:'Uber',                          cat:'Transport',              amount:336,    credit:false, card:'Axis Atlas' },
+      { date:'31 Jul',   merchant:'Uber',                          cat:'Transport',              amount:302,    credit:false, card:'Axis Atlas' },
+    ]
+  }
+  ,{
+    id: 'sep-2026',
+    label: 'Sep 2026',
+    period: '27 Aug – 26 Sep 2026',
+    minDue: 4072,
+    dueDate: '11 Oct 2026',
+    outstanding: 407196,
+    openingBalance: 320685,
+    billPaid: 320790,
+    loanOutstanding: 0,
+    loanNote: '',
+    addOnHolder: 'Sunita Yadav',
+    addOnGross: 5000,
+    addOnNet: 5000,
+    addOnNote: 'Chetak Sweet, Mumbai',
+    addOnTxns: [
+      { date:'16 Sep', merchant:'Chetak Sweet', amount:5000, credit:false },
+    ],
+    txns: [
+      { date:'31 Aug', merchant:'BBPS PMT BBPSDP2162434R1QC7EZTL96', cat:'Payments', amount:175000, credit:true, card:'HSBC TravelOne' },
+      { date:'8 Sep', merchant:'BBPS PMT BBPSDP2162518EQ47ITV33B5', cat:'Payments', amount:145684.53, credit:true, card:'HSBC TravelOne' },
+      { date:'25 Aug', merchant:'Neo Travel DP 19', cat:'Travel', amount:1398, credit:false, card:'HSBC TravelOne' },
+      { date:'26 Aug', merchant:'Uber', cat:'Transport', amount:207.89, credit:false, card:'HSBC TravelOne' },
+      { date:'27 Aug', merchant:'Uber', cat:'Transport', amount:485.59, credit:false, card:'HSBC TravelOne' },
+      { date:'27 Aug', merchant:'Uber', cat:'Transport', amount:411.46, credit:false, card:'HSBC TravelOne' },
+      { date:'27 Aug', merchant:'Blinkit', cat:'Grocery + QC', amount:781, credit:false, card:'HSBC TravelOne' },
+      { date:'28 Aug', merchant:'Zomato', cat:'Food & Dining', amount:1091.58, credit:false, card:'HSBC TravelOne' },
+      { date:'28 Aug', merchant:'Uber', cat:'Transport', amount:275.22, credit:false, card:'HSBC TravelOne' },
+      { date:'28 Aug', merchant:'Google Workspace (refund)', cat:'Subscriptions & Misc', amount:2, credit:true, card:'HSBC TravelOne' },
+      { date:'28 Aug', merchant:'Google Workspace (refund)', cat:'Subscriptions & Misc', amount:2, credit:true, card:'HSBC TravelOne' },
+      { date:'28 Aug', merchant:'Google Workspace (refund)', cat:'Subscriptions & Misc', amount:2, credit:true, card:'HSBC TravelOne' },
+      { date:'29 Aug', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:20885.52, credit:false, card:'HSBC TravelOne' },
+      { date:'29 Aug', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:34634.70, credit:false, card:'HSBC TravelOne' },
+      { date:'29 Aug', merchant:'UrbanClap', cat:'Home Services', amount:1759, credit:false, card:'HSBC TravelOne' },
+      { date:'29 Aug', merchant:'MaestroEdge', cat:'Subscriptions & Misc', amount:129, credit:false, card:'HSBC TravelOne' },
+      { date:'29 Aug', merchant:'Le Salon Cafe', cat:'Food & Dining', amount:3203, credit:false, card:'HSBC TravelOne' },
+      { date:'29 Aug', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:57028, credit:false, card:'HSBC TravelOne' },
+      { date:'30 Aug', merchant:'Uber', cat:'Transport', amount:330.67, credit:false, card:'HSBC TravelOne' },
+      { date:'30 Aug', merchant:'Uber', cat:'Transport', amount:355.04, credit:false, card:'HSBC TravelOne' },
+      { date:'30 Aug', merchant:'IRCTC', cat:'Travel', amount:2896.42, credit:false, card:'HSBC TravelOne' },
+      { date:'31 Aug', merchant:'Uber', cat:'Transport', amount:518.18, credit:false, card:'HSBC TravelOne' },
+      { date:'31 Aug', merchant:'Uber', cat:'Transport', amount:298.07, credit:false, card:'HSBC TravelOne' },
+      { date:'31 Aug', merchant:'Uber', cat:'Transport', amount:6.11, credit:false, card:'HSBC TravelOne' },
+      { date:'31 Aug', merchant:'Akasa Air', cat:'Travel', amount:100, credit:false, card:'HSBC TravelOne' },
+      { date:'31 Aug', merchant:'Blinkit', cat:'Grocery + QC', amount:784, credit:false, card:'HSBC TravelOne' },
+      { date:'31 Aug', merchant:'Blinkit', cat:'Grocery + QC', amount:2310, credit:false, card:'HSBC TravelOne' },
+      { date:'31 Aug', merchant:'Swiggy', cat:'Food & Dining', amount:343, credit:false, card:'HSBC TravelOne' },
+      { date:'31 Aug', merchant:'Starbucks', cat:'Food & Dining', amount:1323, credit:false, card:'HSBC TravelOne' },
+      { date:'1 Sep', merchant:'Travel Food Services', cat:'Food & Dining', amount:410.56, credit:false, card:'HSBC TravelOne' },
+      { date:'2 Sep', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:16287.61, credit:false, card:'HSBC TravelOne' },
+      { date:'2 Sep', merchant:'Uber', cat:'Transport', amount:387.80, credit:false, card:'HSBC TravelOne' },
+      { date:'2 Sep', merchant:'Uber', cat:'Transport', amount:261.15, credit:false, card:'HSBC TravelOne' },
+      { date:'2 Sep', merchant:'Uber', cat:'Transport', amount:319.52, credit:false, card:'HSBC TravelOne' },
+      { date:'3 Sep', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:20331.34, credit:false, card:'HSBC TravelOne' },
+      { date:'3 Sep', merchant:'Uber', cat:'Transport', amount:238.88, credit:false, card:'HSBC TravelOne' },
+      { date:'3 Sep', merchant:'Zepto', cat:'Grocery + QC', amount:640, credit:false, card:'HSBC TravelOne' },
+      { date:'3 Sep', merchant:'MaestroEdge', cat:'Subscriptions & Misc', amount:19.50, credit:false, card:'HSBC TravelOne' },
+      { date:'4 Sep', merchant:'Myntra', cat:'Shopping', amount:572, credit:false, card:'HSBC TravelOne' },
+      { date:'5 Sep', merchant:'Hostinger', cat:'Subscriptions & Misc', amount:1178.82, credit:false, card:'HSBC TravelOne' },
+      { date:'5 Sep', merchant:'District Dining', cat:'Food & Dining', amount:3184, credit:false, card:'HSBC TravelOne' },
+      { date:'5 Sep', merchant:'Amazon Pay India', cat:'Shopping', amount:749, credit:false, card:'HSBC TravelOne' },
+      { date:'5 Sep', merchant:'Amazon Pay India', cat:'Shopping', amount:504, credit:false, card:'HSBC TravelOne' },
+      { date:'5 Sep', merchant:'IRCTC', cat:'Travel', amount:5059, credit:false, card:'HSBC TravelOne' },
+      { date:'5 Sep', merchant:'IRCTC', cat:'Travel', amount:2020, credit:false, card:'HSBC TravelOne' },
+      { date:'6 Sep', merchant:'Maximize Pay (cleaning)', cat:'Home Services', amount:2000, credit:false, card:'HSBC TravelOne' },
+      { date:'6 Sep', merchant:'Swiggy', cat:'Food & Dining', amount:371, credit:false, card:'HSBC TravelOne' },
+      { date:'6 Sep', merchant:'F1.com (USD 39.99)', cat:'Subscriptions & Misc', amount:3780.25, credit:false, card:'HSBC TravelOne' },
+      { date:'7 Sep', merchant:'Amazon Seller Services', cat:'Shopping', amount:590, credit:false, card:'HSBC TravelOne' },
+      { date:'7 Sep', merchant:'Zepto', cat:'Grocery + QC', amount:700, credit:false, card:'HSBC TravelOne' },
+      { date:'7 Sep', merchant:'Uber', cat:'Transport', amount:240.13, credit:false, card:'HSBC TravelOne' },
+      { date:'7 Sep', merchant:'Uber', cat:'Transport', amount:261.52, credit:false, card:'HSBC TravelOne' },
+      { date:'8 Sep', merchant:'Swiggy', cat:'Food & Dining', amount:1304, credit:false, card:'HSBC TravelOne' },
+      { date:'8 Sep', merchant:'Uber', cat:'Transport', amount:262.81, credit:false, card:'HSBC TravelOne' },
+      { date:'8 Sep', merchant:'Uber', cat:'Transport', amount:232.02, credit:false, card:'HSBC TravelOne' },
+      { date:'9 Sep', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:33306.56, credit:false, card:'HSBC TravelOne' },
+      { date:'9 Sep', merchant:'UrbanClap', cat:'Home Services', amount:84, credit:false, card:'HSBC TravelOne' },
+      { date:'9 Sep', merchant:'Uber', cat:'Transport', amount:233.36, credit:false, card:'HSBC TravelOne' },
+      { date:'9 Sep', merchant:'Uber', cat:'Transport', amount:255.44, credit:false, card:'HSBC TravelOne' },
+      { date:'10 Sep', merchant:'Uber', cat:'Transport', amount:238.13, credit:false, card:'HSBC TravelOne' },
+      { date:'10 Sep', merchant:'Maximize Pay (cleaning)', cat:'Home Services', amount:6593, credit:false, card:'HSBC TravelOne' },
+      { date:'11 Sep', merchant:'Snabbit', cat:'Home Services', amount:49.50, credit:false, card:'HSBC TravelOne' },
+      { date:'11 Sep', merchant:'Snabbit', cat:'Home Services', amount:49.50, credit:false, card:'HSBC TravelOne' },
+      { date:'11 Sep', merchant:'Snabbit (refund)', cat:'Home Services', amount:49.50, credit:true, card:'HSBC TravelOne' },
+      { date:'11 Sep', merchant:'Snabbit (refund)', cat:'Home Services', amount:49.50, credit:true, card:'HSBC TravelOne' },
+      { date:'11 Sep', merchant:'Uber', cat:'Transport', amount:262.58, credit:false, card:'HSBC TravelOne' },
+      { date:'11 Sep', merchant:'Swiggy', cat:'Food & Dining', amount:517, credit:false, card:'HSBC TravelOne' },
+      { date:'11 Sep', merchant:'Neelkanth Hospitality', cat:'Travel', amount:19399, credit:false, card:'HSBC TravelOne' },
+      { date:'12 Sep', merchant:'Zepto', cat:'Grocery + QC', amount:1052, credit:false, card:'HSBC TravelOne' },
+      { date:'12 Sep', merchant:'Zepto', cat:'Grocery + QC', amount:904, credit:false, card:'HSBC TravelOne' },
+      { date:'12 Sep', merchant:'Uber', cat:'Transport', amount:15.80, credit:false, card:'HSBC TravelOne' },
+      { date:'12 Sep', merchant:'AtlasMarco (unknown Bengaluru service)', cat:'Subscriptions & Misc', amount:2268, credit:false, card:'HSBC TravelOne' },
+      { date:'12 Sep', merchant:'Swiggy', cat:'Food & Dining', amount:3202, credit:false, card:'HSBC TravelOne' },
+      { date:'12 Sep', merchant:'Maximize Pay (cleaning)', cat:'Home Services', amount:1000, credit:false, card:'HSBC TravelOne' },
+      { date:'13 Sep', merchant:'Blinkit', cat:'Grocery + QC', amount:2260, credit:false, card:'HSBC TravelOne' },
+      { date:'13 Sep', merchant:'Maximize Pay (cleaning)', cat:'Home Services', amount:2625, credit:false, card:'HSBC TravelOne' },
+      { date:'14 Sep', merchant:'Uber', cat:'Transport', amount:405.56, credit:false, card:'HSBC TravelOne' },
+      { date:'15 Sep', merchant:'Zepto', cat:'Grocery + QC', amount:2733.92, credit:false, card:'HSBC TravelOne' },
+      { date:'15 Sep', merchant:'Amazon Seller Services', cat:'Shopping', amount:679, credit:false, card:'HSBC TravelOne' },
+      { date:'15 Sep', merchant:'Zomato', cat:'Food & Dining', amount:50, credit:false, card:'HSBC TravelOne' },
+      { date:'15 Sep', merchant:'Uber', cat:'Transport', amount:241.36, credit:false, card:'HSBC TravelOne' },
+      { date:'15 Sep', merchant:'Uber', cat:'Transport', amount:475.99, credit:false, card:'HSBC TravelOne' },
+      { date:'15 Sep', merchant:'Uber', cat:'Transport', amount:214.32, credit:false, card:'HSBC TravelOne' },
+      { date:'15 Sep', merchant:'Adanione (unknown Ahmedabad service)', cat:'Subscriptions & Misc', amount:250, credit:false, card:'HSBC TravelOne' },
+      { date:'16 Sep', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:27625, credit:false, card:'HSBC TravelOne' },
+      { date:'16 Sep', merchant:'Chipotle (LA, USD 14.65)', cat:'Food & Dining', amount:1406.18, credit:false, card:'HSBC TravelOne' },
+      { date:'16 Sep', merchant:'Uber', cat:'Transport', amount:4, credit:false, card:'HSBC TravelOne' },
+      { date:'18 Sep', merchant:'Google Store (USD 151.48)', cat:'Shopping', amount:14551.13, credit:false, card:'HSBC TravelOne' },
+      { date:'17 Sep', merchant:'Kieraya Furnishing (Furlenco)', cat:'Subscriptions & Misc', amount:7069.38, credit:false, card:'HSBC TravelOne' },
+      { date:'19 Sep', merchant:'Lucky Strike Bever (LA, USD 77.94)', cat:'Food & Dining', amount:7475.62, credit:false, card:'HSBC TravelOne' },
+      { date:'19 Sep', merchant:'Lovable (USD 5.00)', cat:'Subscriptions & Misc', amount:479.58, credit:false, card:'HSBC TravelOne' },
+      { date:'20 Sep', merchant:'Amazon', cat:'Shopping', amount:972.30, credit:false, card:'HSBC TravelOne' },
+      { date:'24 Sep', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:51679.71, credit:false, card:'HSBC TravelOne' },
+      { date:'24 Sep', merchant:'Swiggy', cat:'Food & Dining', amount:700, credit:false, card:'HSBC TravelOne' },
+      { date:'25 Sep', merchant:'Big Tree Entertainment (BookMyShow)', cat:'Subscriptions & Misc', amount:804.96, credit:false, card:'HSBC TravelOne' },
+      { date:'26 Sep', merchant:'Foot Locker (NY, USD 176.48)', cat:'Shopping', amount:16912.52, credit:false, card:'HSBC TravelOne' },
+    ]
+  }
+  // ── PASTE NEXT MONTH HERE ──
+];
+
+// ═══════════════════════════════════════════════
+//  CONSTANTS
+// ═══════════════════════════════════════════════
+const COLORS = ['#e63946','#f4a261','#2ec4b6','#5b8dee','#a78bfa','#fb923c','#34d399','#f472b6','#60a5fa','#facc15','#94a3b8','#e879f9'];
+const ALL_CATS = ['Food & Dining','Home & Furniture','Travel','Shopping','Subscriptions','Home Services','Grocery + QC','Health','Transport'];
+
+function catColor(name) {
+  const idx = ALL_CATS.indexOf(name);
+  return COLORS[idx >= 0 ? idx : COLORS.length - 1];
+}
+
+// ═══════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════
+function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+function fmtL(n) { return n >= 100000 ? '₹' + (n/100000).toFixed(2) + 'L' : fmt(n); }
+
+// card = 'All' | specific card name — drives KPIs, charts, transactions
+//
+// Net Spend = what this statement actually bills you = total payment due.
+// That is new charges this cycle PLUS any balance carried over unpaid from
+// the previous cycle. Bill payments (cat 'Payments') settle the balance and
+// are never spend. `newCharges` is the period-only figure, kept separate so
+// month-over-month comparisons don't double-count carried debt.
+function getStats(stmt, card) {
+  const allTxns = card === 'All' ? stmt.txns : stmt.txns.filter(t => t.card === card);
+  const txns = allTxns.filter(t => !excludeData[excludeKey(t, stmt.id)] && !reimburseData[reimbKey(t, stmt.id)]);
+  const showAddOn = card === 'All' || card === 'HSBC TravelOne';
+  const addOnNet = showAddOn ? stmt.addOnNet : 0;
+  const spendTxns = txns.filter(t => t.cat !== 'Payments');
+  const newCharges = spendTxns.reduce((s,t)=>s+(t.credit?-t.amount:t.amount),0) + addOnNet;
+  // carry-forward belongs to the whole account, so only on the unfiltered view
+  const carry = (card === 'All' && stmt.carryForward) ? stmt.carryForward : 0;
+  const netSpend = newCharges + carry;
+  const catMap = {};
+  spendTxns.filter(t=>!t.credit).forEach(t => { const c=effCat(t,stmt.id); catMap[c]=(catMap[c]||0)+t.amount; });
+  if (showAddOn && addOnNet > 0) catMap['Add-on (Sunita)'] = addOnNet;
+  if (carry > 0) catMap['Carried Forward'] = carry;
+  const cats = Object.entries(catMap)
+    .map(([name,amount]) => ({name, amount,
+      color: name.startsWith('Add-on') ? '#2ec4b6' : name === 'Carried Forward' ? '#f4a261' : catColor(name)}))
+    .sort((a,b)=>b.amount-a.amount);
+  return { netSpend, newCharges, carry, cats, txns };
+}
+
+// kept for trends view (always uses all-card totals)
+function getCategoryTotals(stmt) { return getStats(stmt,'All').cats; }
+function getNetSpend(stmt)        { return getStats(stmt,'All').netSpend; }
+// period-only spend — used where carried debt would double-count across months
+function getNewCharges(stmt)      { return getStats(stmt,'All').newCharges; }
+
+// ═══════════════════════════════════════════════
+//  REIMBURSABLE — storage + helpers
+// ═══════════════════════════════════════════════
+let reimburseData = {};
+function loadReimburse() { try { reimburseData = JSON.parse(localStorage.getItem('reimburse_v1')||'{}'); } catch(e) { reimburseData = {}; } }
+function saveReimburse() { localStorage.setItem('reimburse_v1', JSON.stringify(reimburseData)); }
+function reimbKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}`; }
+function getReimbTotal(stmtId) {
+  const stmt = STATEMENTS.find(s=>s.id===stmtId);
+  return stmt.txns.filter(t => reimburseData[reimbKey(t,stmtId)] && !t.credit).reduce((s,t)=>s+t.amount,0);
+}
+function getReimbCount(stmtId) {
+  const stmt = STATEMENTS.find(s=>s.id===stmtId);
+  return stmt.txns.filter(t => reimburseData[reimbKey(t,stmtId)] && !t.credit).length;
+}
+function toggleReimburse(stmtId, key) {
+  reimburseData[key] = !reimburseData[key];
+  if (!reimburseData[key]) delete reimburseData[key];
+  saveReimburse();
+  updateMonthView(stmtId, activeTopCard[stmtId] || 'All');
+}
+loadReimburse();
+
+// ═══════════════════════════════════════════════
+//  EXCLUDE — storage + helpers
+// ═══════════════════════════════════════════════
+let excludeData = {};
+function loadExclude() { try { excludeData = JSON.parse(localStorage.getItem('exclude_v1')||'{}'); } catch(e) { excludeData = {}; } }
+function saveExclude() { localStorage.setItem('exclude_v1', JSON.stringify(excludeData)); }
+function excludeKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}`; }
+function getExcludeTotal(stmtId) {
+  const stmt = STATEMENTS.find(s=>s.id===stmtId);
+  return stmt.txns.filter(t => excludeData[excludeKey(t,stmtId)] && !t.credit).reduce((s,t)=>s+t.amount,0);
+}
+function getExcludeCount(stmtId) {
+  const stmt = STATEMENTS.find(s=>s.id===stmtId);
+  return stmt.txns.filter(t => excludeData[excludeKey(t,stmtId)]).length;
+}
+function toggleExclude(stmtId, key) {
+  excludeData[key] = !excludeData[key];
+  if (!excludeData[key]) delete excludeData[key];
+  saveExclude();
+  updateMonthView(stmtId, activeTopCard[stmtId] || 'All');
+}
+loadExclude();
+
+// ═══════════════════════════════════════════════
+//  CATEGORY OVERRIDES — storage + helpers
+// ═══════════════════════════════════════════════
+let catOverrides = {};
+function loadCatOverrides() { try { catOverrides = JSON.parse(localStorage.getItem('cat_overrides_v1')||'{}'); } catch(e) { catOverrides = {}; } }
+function saveCatOverrides() { localStorage.setItem('cat_overrides_v1', JSON.stringify(catOverrides)); }
+function catOverrideKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}`; }
+function effCat(t, stmtId) { return catOverrides[catOverrideKey(t, stmtId)] || t.cat; }
+let _allCategoriesCache = null;
+function allCategories() {
+  if (_allCategoriesCache) return _allCategoriesCache;
+  const cats = new Set(ALL_CATS);
+  STATEMENTS.forEach(s => s.txns.forEach(t => cats.add(t.cat)));
+  return _allCategoriesCache = [...cats].sort();
+}
+function setCatOverride(stmtId, key, newCat) {
+  catOverrides[key] = newCat;
+  saveCatOverrides();
+  updateMonthView(stmtId, activeTopCard[stmtId] || 'All');
+}
+loadCatOverrides();
+
+// ═══════════════════════════════════════════════
+//  BUDGET — overall monthly spend cap
+// ═══════════════════════════════════════════════
+let budgetData = {};
+function loadBudget() { try { budgetData = JSON.parse(localStorage.getItem('budget_v1')||'{}'); } catch(e) { budgetData = {}; } }
+function saveBudget() { localStorage.setItem('budget_v1', JSON.stringify(budgetData)); }
+function setBudget(val) {
+  const n = Math.max(0, Math.round(Number(val) || 0));
+  budgetData.cap = n;
+  saveBudget();
+  STATEMENTS.forEach(s => renderBudget(s.id)); // cap is global → refresh every month
+}
+loadBudget();
+
+// ═══════════════════════════════════════════════
+//  RECURRING CHARGES — detect merchants billed across 2+ months
+// ═══════════════════════════════════════════════
+function normMerchant(name) {
+  return name
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, ' ')   // drop parentheticals: (x2), (refund), (USD 23.60)
+    .replace(/\bx\d+\b/g, ' ')    // drop standalone x2 etc.
+    .replace(/[0-9]/g, ' ')        // drop stray digits
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+let _recurringCache = null;
+function getRecurring() {
+  if (_recurringCache) return _recurringCache;
+  const map = {}; // norm → { label, months:Set, total }
+  STATEMENTS.forEach(s => {
+    s.txns.filter(t => !t.credit).forEach(t => {
+      const k = normMerchant(t.merchant);
+      if (!k) return;
+      if (!map[k]) map[k] = { label: t.merchant.replace(/\s*\([^)]*\)\s*/g,'').trim() || t.merchant, months:new Set(), total:0 };
+      map[k].months.add(s.id);
+      map[k].total += t.amount;
+    });
+  });
+  // recurring = seen in ≥2 distinct months
+  _recurringCache = Object.entries(map)
+    .filter(([,v]) => v.months.size >= 2)
+    .reduce((o,[k,v]) => { o[k] = v; return o; }, {});
+  return _recurringCache;
+}
+
+// recurring merchants that have a charge in THIS month
+function getMonthRecurring(stmt) {
+  const rec = getRecurring();
+  const thisMonth = {}; // norm → amount this month
+  stmt.txns.filter(t => !t.credit).forEach(t => {
+    const k = normMerchant(t.merchant);
+    if (rec[k]) thisMonth[k] = (thisMonth[k]||0) + t.amount;
+  });
+  return Object.entries(thisMonth).map(([k, amt]) => {
+    const r = rec[k];
+    const avg = r.total / r.months.size;
+    return { label:r.label, amount:amt, months:r.months.size, annual:avg*12 };
+  }).sort((a,b) => b.amount - a.amount);
+}
+
+// ═══════════════════════════════════════════════
+//  MONTH-OVER-MONTH — vs previous statement in the array
+// ═══════════════════════════════════════════════
+function getMoM(stmtId) {
+  const idx = STATEMENTS.findIndex(s => s.id === stmtId);
+  if (idx < 1) return null; // first month, nothing to compare
+  const cur = STATEMENTS[idx], prev = STATEMENTS[idx-1];
+  const curS = getStats(cur, 'All'), prevS = getStats(prev, 'All');
+  // compare period spend, not total due — carried debt was already counted
+  // in the month it was charged, so including it would double-count
+  const totalDelta = curS.newCharges - prevS.newCharges;
+  const pct = prevS.newCharges ? (totalDelta / prevS.newCharges) * 100 : 0;
+  // category movers
+  const curCat = {}, prevCat = {};
+  curS.cats.forEach(c => curCat[c.name] = c.amount);
+  prevS.cats.forEach(c => prevCat[c.name] = c.amount);
+  const names = new Set([...Object.keys(curCat), ...Object.keys(prevCat)]);
+  const movers = [...names].map(n => ({ name:n, delta:(curCat[n]||0) - (prevCat[n]||0) }));
+  const topUp = movers.filter(m => m.delta > 0).sort((a,b) => b.delta - a.delta).slice(0,2);
+  const topDown = movers.filter(m => m.delta < 0).sort((a,b) => a.delta - b.delta).slice(0,1);
+  return { prevLabel:prev.label, totalDelta, pct, topUp, topDown };
+}
+
+// ═══════════════════════════════════════════════
+//  CSV EXPORT — current filtered view
+// ═══════════════════════════════════════════════
+function csvCell(v) { const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; }
+function exportCSV(stmtId) {
+  const stmt = STATEMENTS.find(s => s.id === stmtId);
+  const rows = getFilteredTxns(stmtId);
+  const header = ['Date','Merchant','Card','Category','Amount','Credit'];
+  const lines = [header.join(',')];
+  rows.forEach(t => {
+    lines.push([t.date, t.merchant, t.card||'', effCat(t, stmtId), t.amount, t.credit?'Yes':'No'].map(csvCell).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'spend-' + stmt.label.replace(/\s+/g,'-').toLowerCase() + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER — budget strip + MoM card
+// ═══════════════════════════════════════════════
+function renderBudget(stmtId) {
+  const wrap = document.getElementById('budget-'+stmtId);
+  if (!wrap) return;
+  const stmt = STATEMENTS.find(s => s.id === stmtId);
+  // a spending cap measures this cycle's charges, not debt carried in
+  const spent = getStats(stmt, 'All').newCharges; // overall — ignores card filter
+  const cap = budgetData.cap || 0;
+  const inputEl = document.getElementById('budget-input-'+stmtId);
+  if (inputEl && document.activeElement !== inputEl) inputEl.value = cap || '';
+
+  const bar = document.getElementById('budget-bar-'+stmtId);
+  const spentEl = document.getElementById('budget-spent-'+stmtId);
+  const chip = document.getElementById('budget-chip-'+stmtId);
+
+  if (!cap) {
+    spentEl.innerHTML = `Spent this cycle <b>${fmtL(spent)}</b>`;
+    bar.style.transform = 'scaleX(0)';
+    chip.className = 'budget-chip';
+    chip.textContent = 'Set a cap to track';
+    return;
+  }
+  const pct = (spent / cap) * 100;
+  spentEl.innerHTML = `Spent this cycle <b>${fmtL(spent)}</b> of ${fmtL(cap)} (${pct.toFixed(0)}%)`;
+  bar.style.transform = 'scaleX(' + (Math.min(pct, 100) / 100) + ')';
+  bar.style.background = pct > 100 ? '#e63946' : (pct >= 80 ? '#f4a261' : '#2ec4b6');
+  if (spent > cap) { chip.className = 'budget-chip over'; chip.textContent = '⚠ Over by ' + fmt(spent - cap); }
+  else { chip.className = 'budget-chip ok'; chip.textContent = '✓ ' + fmt(cap - spent) + ' left'; }
+}
+
+function renderRecurring(stmtId) {
+  const wrap = document.getElementById('recurring-'+stmtId);
+  if (!wrap) return;
+  const stmt = STATEMENTS.find(s => s.id === stmtId);
+  const list = getMonthRecurring(stmt);
+  if (!list.length) { wrap.innerHTML = `<div class="placeholder-msg">No recurring merchants this month yet.</div>`; return; }
+  const monthly = list.reduce((s,r) => s + r.amount, 0);
+  const annual = list.reduce((s,r) => s + r.annual, 0);
+  let html = `<div class="recurring-summary"><b>${fmtL(monthly)}</b> this month · ${list.length} merchant${list.length!==1?'s':''} · ~<b>${fmtL(annual)}</b>/yr</div>`;
+  html += `<table class="txn"><thead><tr><th>Merchant</th><th style="text-align:center">Months</th><th style="text-align:right">This month</th><th style="text-align:right">~ / yr</th></tr></thead><tbody>`;
+  list.forEach(r => {
+    html += `<tr><td>${r.label}</td><td style="text-align:center;color:#8b8fa8">${r.months}</td><td style="text-align:right" class="amt-debit">${fmt(r.amount)}</td><td style="text-align:right;color:#8b8fa8">${fmtL(r.annual)}</td></tr>`;
+  });
+  html += `</tbody></table>`;
+  wrap.innerHTML = html;
+}
+
+function renderMoM(stmtId) {
+  const m = getMoM(stmtId);
+  // budget-strip one-liner
+  const momLine = document.getElementById('budget-mom-'+stmtId);
+  if (momLine) {
+    if (!m) momLine.innerHTML = '';
+    else {
+      const dir = m.totalDelta >= 0 ? 'up' : 'down';
+      const arr = m.totalDelta >= 0 ? '↑' : '↓';
+      momLine.innerHTML = `<span class="${dir}">${arr} ${Math.abs(m.pct).toFixed(0)}%</span> vs ${m.prevLabel}`;
+    }
+  }
+  // MoM card body
+  const body = document.getElementById('mom-body-'+stmtId);
+  if (!body) return;
+  if (!m) { body.innerHTML = `<div class="placeholder-msg">First month — no comparison yet.</div>`; return; }
+  const dir = m.totalDelta >= 0 ? 'up' : 'down';
+  const arr = m.totalDelta >= 0 ? '↑' : '↓';
+  let html = `<div class="mom-total ${dir}">${arr} ${fmt(Math.abs(m.totalDelta))}</div>`;
+  html += `<div class="mom-sub">${m.totalDelta >= 0 ? 'more' : 'less'} than ${m.prevLabel} (${arr} ${Math.abs(m.pct).toFixed(0)}%)</div>`;
+  m.topUp.forEach(x => { html += `<div class="mover-row"><span class="mover-name">${x.name}</span><span class="mover-delta up">↑ ${fmt(x.delta)}</span></div>`; });
+  m.topDown.forEach(x => { html += `<div class="mover-row"><span class="mover-name">${x.name}</span><span class="mover-delta down">↓ ${fmt(Math.abs(x.delta))}</span></div>`; });
+  body.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════
+//  CHART RENDER / UPDATE
+// ═══════════════════════════════════════════════
+const stmtCharts = {};
+const activeTopCard = {};
+const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function renderCharts(stmt, cats, netSpend) {
+  const id = stmt.id;
+  if (stmtCharts[id]) { stmtCharts[id].donut?.destroy(); stmtCharts[id].bar?.destroy(); }
+  const donut = new Chart(document.getElementById('donut-'+id), {
+    type:'doughnut',
+    data:{ labels:cats.map(c=>c.name), datasets:[{ data:cats.map(c=>c.amount), backgroundColor:cats.map(c=>c.color), borderWidth:2, borderColor:'#1a1d2e', hoverOffset:5 }] },
+    options:{ cutout:'66%', plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx=>` ${fmt(ctx.parsed)} (${((ctx.parsed/netSpend)*100).toFixed(1)}%)` }}}, animation:{duration:REDUCED_MOTION?0:400} }
+  });
+  const bar = new Chart(document.getElementById('bar-'+id), {
+    type:'bar',
+    data:{ labels:cats.map(c=>c.name), datasets:[{ data:cats.map(c=>c.amount), backgroundColor:cats.map(c=>c.color+'bb'), borderColor:cats.map(c=>c.color), borderWidth:1, borderRadius:5 }] },
+    options:{ indexAxis:'y', plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.x)}`}}}, scales:{ x:{grid:{color:'#2a2d3e'}, ticks:{color:'#8b8fa8', callback:v=>'₹'+(v/1000).toFixed(0)+'k'}}, y:{grid:{display:false}, ticks:{color:'#c8cad8', font:{size:12}}} }, animation:{duration:REDUCED_MOTION?0:400} }
+  });
+  stmtCharts[id] = { donut, bar };
+  const leg = document.getElementById('legend-'+id);
+  leg.innerHTML = '';
+  cats.forEach(c => {
+    leg.innerHTML += `<div class="legend-item"><div style="display:flex;align-items:center"><div class="dot" style="background:${c.color}"></div><span class="legend-name">${c.name}</span></div><div style="display:flex;align-items:center"><span class="legend-amt">${fmt(c.amount)}</span><span class="legend-pct">${((c.amount/netSpend)*100).toFixed(0)}%</span></div></div>`;
+  });
+}
+
+function updateMonthView(stmtId, card) {
+  const stmt = STATEMENTS.find(s=>s.id===stmtId);
+  const { netSpend, cats } = getStats(stmt, card);
+  const topCat = cats[0];
+  document.getElementById('kpi-spend-'+stmtId).textContent    = fmtL(netSpend);
+  document.getElementById('kpi-topval-'+stmtId).textContent   = fmt(topCat.amount);
+  document.getElementById('kpi-topsub-'+stmtId).textContent   = `${topCat.name} (${((topCat.amount/netSpend)*100).toFixed(0)}%)`;
+  document.getElementById('donut-big-'+stmtId).textContent    = fmtL(netSpend);
+  const rTotal = getReimbTotal(stmtId); const rCount = getReimbCount(stmtId);
+  document.getElementById('kpi-reimb-'+stmtId).textContent    = fmtL(rTotal);
+  document.getElementById('kpi-reimb-sub-'+stmtId).textContent = `${rCount} txn${rCount!==1?'s':''} · you'll get back`;
+  const eTotal = getExcludeTotal(stmtId); const eCount = getExcludeCount(stmtId);
+  document.getElementById('kpi-excl-'+stmtId).textContent     = fmtL(eTotal);
+  document.getElementById('kpi-excl-sub-'+stmtId).textContent = `${eCount} txn${eCount!==1?'s':''} · removed from spend`;
+  renderCharts(stmt, cats, netSpend);
+  renderBudget(stmtId);
+  renderMoM(stmtId);
+  renderRecon(stmtId);
+  renderTxns(stmtId);
+}
+
+// ═══════════════════════════════════════════════
+//  BILL RECONCILIATION
+//  Shows statement truth: carry-forward + new charges = total due.
+//  Fixed figures straight off the statement — exclusions/reimbursements
+//  reshape the Net Spend view, never the bill. Any gap is flagged below.
+// ═══════════════════════════════════════════════
+function reconHTML(stmt) {
+  if (stmt.carryForward == null) return '';
+  const newCharges = stmt.outstanding - stmt.carryForward;
+  return `
+    <div class="recon" id="recon-${stmt.id}">
+      <div class="recon-head">
+        <h2>Bill Reconciliation</h2>
+        <span class="period">Statement ${stmt.period}</span>
+      </div>
+      <div class="recon-eq">
+        <div class="recon-term carry">
+          <div class="amt">${fmt(stmt.carryForward)}</div>
+          <div class="name">Carried over, unpaid</div>
+          <div class="note">${stmt.carryForwardNote || ''}</div>
+        </div>
+        <div class="recon-op">+</div>
+        <div class="recon-term spend">
+          <div class="amt">${fmt(newCharges)}</div>
+          <div class="name">New charges this cycle</div>
+          <div class="note">After refunds &amp; reversals</div>
+        </div>
+        <div class="recon-op eq">=</div>
+        <div class="recon-term total">
+          <div class="amt">${fmt(stmt.outstanding)}</div>
+          <div class="name">Total payment due</div>
+          <div class="note">By ${stmt.dueDate} · min ${fmt(stmt.minDue)}</div>
+        </div>
+      </div>
+      <div class="recon-flag" id="recon-flag-${stmt.id}"></div>
+    </div>`;
+}
+
+function renderRecon(stmtId) {
+  const stmt = STATEMENTS.find(s=>s.id===stmtId);
+  if (!stmt || stmt.carryForward == null) return;
+  const flag = document.getElementById('recon-flag-'+stmtId);
+  if (!flag) return;
+
+  const stmtCharges = stmt.outstanding - stmt.carryForward;
+  const { netSpend } = getStats(stmt, 'All');
+  const gap   = stmt.outstanding - netSpend;
+  const parts = [];
+
+  if (getExcludeCount(stmtId))  parts.push(`${fmt(getExcludeTotal(stmtId))} excluded`);
+  if (getReimbCount(stmtId))    parts.push(`${fmt(getReimbTotal(stmtId))} marked reimbursable`);
+
+  if (parts.length) {
+    flag.style.display = '';
+    flag.innerHTML = `Net Spend reads <b>${fmtL(netSpend)}</b> — ${parts.join(' and ')}. `
+                   + `The bill above is unaffected: you still owe ${fmt(stmt.outstanding)}.`;
+  } else if (Math.abs(gap) > 50) {
+    flag.style.display = '';
+    flag.innerHTML = `Net Spend reads <b>${fmtL(netSpend)}</b>, ${fmt(Math.abs(gap))} `
+                   + `${gap > 0 ? 'below' : 'above'} the billed total.`;
+  } else if (gap !== 0) {
+    flag.style.display = '';
+    flag.innerHTML = `Net Spend matches the bill at <b>${fmtL(netSpend)}</b>. `
+                   + `Line items are rounded to whole rupees, leaving a ${fmt(Math.abs(gap))} rounding difference `
+                   + `against the statement's ${fmt(stmtCharges)} of new charges.`;
+  } else {
+    flag.style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  BUILD MONTH VIEW
+// ═══════════════════════════════════════════════
+function buildMonthView(stmt) {
+  const { cats, netSpend } = getStats(stmt, 'All');
+  activeTopCard[stmt.id] = 'All';
+  const topCat = cats[0];
+
+  const div = document.createElement('div');
+  div.className = 'view';
+  div.id = 'view-' + stmt.id;
+
+  // card filter options
+  const cardOptions = ['All', ...new Set(stmt.txns.map(t=>t.card).filter(Boolean))];
+
+  div.innerHTML = `
+    <!-- Card filter bar -->
+    <div class="card-filter-bar">
+      <span class="card-filter-bar-label">View by card</span>
+      ${cardOptions.map(c => `<button class="card-filter-btn${c==='All'?' active':''}" onclick="selectCard('${stmt.id}','${c}',this)">${c==='All'?'All Cards':c}</button>`).join('')}
+    </div>
+
+    <!-- Bill reconciliation -->
+    ${reconHTML(stmt)}
+
+    <!-- Budget strip -->
+    <div class="budget-strip" id="budget-${stmt.id}">
+      <div class="budget-top">
+        <div class="budget-left">
+          <span class="budget-label">Monthly Budget ₹</span>
+          <input class="budget-input" id="budget-input-${stmt.id}" type="number" min="0" step="1000" placeholder="set cap"
+                 onchange="setBudget(this.value)">
+        </div>
+        <div class="budget-right">
+          <span class="budget-spent" id="budget-spent-${stmt.id}"></span>
+          <span class="budget-mom" id="budget-mom-${stmt.id}"></span>
+          <span class="budget-chip" id="budget-chip-${stmt.id}"></span>
+        </div>
+      </div>
+      <div class="budget-bar"><div class="budget-fill" id="budget-bar-${stmt.id}" style="transform:scaleX(0)"></div></div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-row">
+      <div class="kpi red"><div class="label">Net Spend</div><div class="value" id="kpi-spend-${stmt.id}">${fmtL(netSpend)}</div><div class="sub" id="kpi-spend-sub-${stmt.id}">${stmt.carryForward ? 'Total due — incl. carried balance' : 'After refunds &amp; credits'}</div></div>
+      <div class="kpi yellow"><div class="label">Top Category</div><div class="value" id="kpi-topval-${stmt.id}">${fmt(topCat.amount)}</div><div class="sub" id="kpi-topsub-${stmt.id}">${topCat.name} (${((topCat.amount/netSpend)*100).toFixed(0)}%)</div></div>
+      ${stmt.addOnHolder ? `<div class="kpi teal"><div class="label">${stmt.addOnHolder} (Add-on)</div><div class="value">${fmt(stmt.addOnNet)}</div><div class="sub">${((stmt.addOnNet/netSpend)*100).toFixed(0)}% of total</div></div>` : ''}
+      <div class="kpi blue"><div class="label">Min Due</div><div class="value">${fmt(stmt.minDue)}</div><div class="sub">By ${stmt.dueDate}</div></div>
+      <div class="kpi teal"><div class="label">Reimbursable</div><div class="value" id="kpi-reimb-${stmt.id}">${fmtL(getReimbTotal(stmt.id))}</div><div class="sub" id="kpi-reimb-sub-${stmt.id}">${getReimbCount(stmt.id)} txns · you'll get back</div></div>
+      <div class="kpi red"><div class="label">Excluded</div><div class="value" id="kpi-excl-${stmt.id}" style="font-size:18px">${fmtL(getExcludeTotal(stmt.id))}</div><div class="sub" id="kpi-excl-sub-${stmt.id}">${getExcludeCount(stmt.id)} txn${getExcludeCount(stmt.id)!==1?'s':''} · removed from spend</div></div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-row">
+      <div class="card">
+        <h2>Category Breakdown</h2>
+        <div class="donut-wrap"><canvas id="donut-${stmt.id}"></canvas>
+          <div class="donut-center"><div class="big" id="donut-big-${stmt.id}">${fmtL(netSpend)}</div><div class="sm">Net Spend</div></div>
+        </div>
+        <div class="legend" id="legend-${stmt.id}"></div>
+      </div>
+      <div class="card">
+        <h2>Spend by Category</h2>
+        <div class="bar-wrap"><canvas id="bar-${stmt.id}"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Add-on section -->
+    ${!stmt.addOnHolder ? '' : `
+    <div class="two-col">
+      <div class="card">
+        <h2>${stmt.addOnHolder} — Add-on Card</h2>
+        <div class="stat-row"><span class="s-label">Gross Charges</span><span class="s-val">${fmt(stmt.addOnGross)}</span></div>
+        <div class="stat-row"><span class="s-label">Refunds</span><span class="s-val" style="color:#2ec4b6">−${fmt(stmt.addOnGross - stmt.addOnNet)}</span></div>
+        <div class="stat-row"><span class="s-label">Net Spend</span><span class="s-val" style="color:#f4a261">${fmt(stmt.addOnNet)}</span></div>
+        <div class="stat-row"><span class="s-label">Share of Total</span><span class="s-val">${((stmt.addOnNet/netSpend)*100).toFixed(1)}%</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${((stmt.addOnNet/netSpend)*100).toFixed(1)}%"></div></div>
+        <div style="font-size:11px;color:#8b8fa8;margin-top:8px">${stmt.addOnNote}</div>
+      </div>
+      <div class="card">
+        <h2>${stmt.addOnHolder} — Transactions</h2>
+        <table class="txn">
+          <thead><tr><th>Date</th><th>Merchant</th><th style="text-align:right">Amount</th></tr></thead>
+          <tbody>${stmt.addOnTxns.map(t => `
+            <tr>
+              <td style="color:#8b8fa8;white-space:nowrap">${t.date}</td>
+              <td>${t.merchant}</td>
+              <td style="text-align:right" class="${t.credit?'amt-credit':(t.amount>=10000?'amt-large':'amt-debit')}">${t.credit?'−':''}${fmt(t.amount)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`}
+
+    <!-- Recurring + Month-over-Month -->
+    <div class="two-col">
+      <div class="card">
+        <h2>Recurring Charges</h2>
+        <div class="card-sub">Merchants billed across 2+ months</div>
+        <div id="recurring-${stmt.id}"></div>
+      </div>
+      <div class="card">
+        <h2>Month-over-Month</h2>
+        <div class="card-sub">Net spend vs previous statement</div>
+        <div id="mom-body-${stmt.id}"></div>
+      </div>
+    </div>
+
+    <!-- Transactions -->
+    <div class="txn-card">
+      <div class="txn-top">
+        <h2 style="font-size:12px;font-weight:600;color:#8b8fa8;text-transform:uppercase;letter-spacing:.6px">All Transactions</h2>
+        <div style="display:flex;align-items:center">
+          <input class="search-box" id="search-${stmt.id}" type="text" placeholder="Search merchant…" oninput="renderTxns('${stmt.id}')">
+          <button class="csv-btn" onclick="exportCSV('${stmt.id}')">⤓ CSV</button>
+        </div>
+      </div>
+      <div class="filter-row" id="filters-${stmt.id}"></div>
+      <table class="txn"><thead><tr><th>Date</th><th>Merchant</th><th>Category</th><th style="text-align:right">Amount</th><th></th></tr></thead>
+        <tbody id="tbody-${stmt.id}"></tbody>
+      </table>
+      <div class="no-results" id="nores-${stmt.id}" style="display:none">No transactions found.</div>
+    </div>
+  `;
+
+  document.querySelector('.container').appendChild(div);
+  requestAnimationFrame(() => renderCharts(stmt, cats, netSpend));
+  buildFilters(stmt);
+  renderBudget(stmt.id);
+  renderRecurring(stmt.id);
+  renderMoM(stmt.id);
+  renderRecon(stmt.id);
+  renderTxns(stmt.id);
+}
+
+function selectCard(stmtId, card, btn) {
+  activeTopCard[stmtId] = card;
+  btn.closest('.card-filter-bar').querySelectorAll('.card-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  updateMonthView(stmtId, card);
+}
+
+// ═══════════════════════════════════════════════
+//  TRANSACTIONS FILTER / RENDER
+// ═══════════════════════════════════════════════
+const activeFilters = {};
+
+function buildFilters(stmt) {
+  activeFilters[stmt.id] = 'All';
+  const fr = document.getElementById('filters-' + stmt.id);
+  const catRow = document.createElement('div');
+  catRow.className = 'filter-sub-row';
+  catRow.innerHTML = '<span class="filter-label">Category</span>';
+  const cats = ['All', ...new Set(stmt.txns.map(t => effCat(t, stmt.id)))].sort((a,b) => a==='All'?-1:b==='All'?1:a.localeCompare(b));
+  cats.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn' + (cat==='All'?' active':'');
+    btn.textContent = cat;
+    btn.onclick = () => {
+      activeFilters[stmt.id] = cat;
+      catRow.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderTxns(stmt.id);
+    };
+    catRow.appendChild(btn);
+  });
+  // Reimbursable filter pill
+  const reimbPill = document.createElement('button');
+  reimbPill.className = 'filter-btn';
+  reimbPill.textContent = '↩ Reimbursable';
+  reimbPill.style.borderColor = '#2ec4b6';
+  reimbPill.onclick = () => {
+    activeFilters[stmt.id] = '__reimburse__';
+    catRow.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    reimbPill.classList.add('active');
+    renderTxns(stmt.id);
+  };
+  catRow.appendChild(reimbPill);
+  // Excluded filter pill
+  const exclPill = document.createElement('button');
+  exclPill.className = 'filter-btn';
+  exclPill.textContent = '✕ Excluded';
+  exclPill.style.borderColor = '#e63946';
+  exclPill.onclick = () => {
+    activeFilters[stmt.id] = '__excluded__';
+    catRow.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    exclPill.classList.add('active');
+    renderTxns(stmt.id);
+  };
+  catRow.appendChild(exclPill);
+  fr.appendChild(catRow);
+}
+
+function getFilteredTxns(id) {
+  const stmt = STATEMENTS.find(s => s.id === id);
+  const search = (document.getElementById('search-'+id)?.value||'').toLowerCase();
+  const card = activeTopCard[id] || 'All';
+  const showExcluded = activeFilters[id] === '__excluded__';
+  return stmt.txns
+    .filter(t => {
+      const isExcl = !!excludeData[excludeKey(t, id)];
+      if (showExcluded) return isExcl;
+      if (isExcl) return false;
+      if (card !== 'All' && t.card !== card) return false;
+      if (activeFilters[id] === '__reimburse__' && !reimburseData[reimbKey(t,id)]) return false;
+      if (activeFilters[id] !== 'All' && activeFilters[id] !== '__reimburse__' && effCat(t, id) !== activeFilters[id]) return false;
+      if (search && !t.merchant.toLowerCase().includes(search) && !t.cat.toLowerCase().includes(search)) return false;
+      return true;
+    })
+    .sort((a,b) => b.amount - a.amount);
+}
+
+function renderTxns(id) {
+  const filtered = getFilteredTxns(id);
+  const tbody = document.getElementById('tbody-'+id);
+  const nores = document.getElementById('nores-'+id);
+  if (!filtered.length) { tbody.innerHTML=''; nores.style.display='block'; return; }
+  nores.style.display='none';
+  tbody.innerHTML = filtered.map(t => {
+    const cat  = effCat(t, id);
+    const col  = catColor(cat);
+    const cls  = t.credit ? 'amt-credit' : (t.amount>=10000?'amt-large':'amt-debit');
+    const rKey = reimbKey(t, id);
+    const eKey = excludeKey(t, id);
+    const cKey = catOverrideKey(t, id);
+    const isReimb = !!reimburseData[rKey];
+    const isExcl  = !!excludeData[eKey];
+    const catOpts = allCategories().map(c => `<option value="${c}"${c===cat?' selected':''}>${c}</option>`).join('');
+    return `<tr class="${isReimb?'reimb-row':''} ${isExcl?'exclude-row':''}">
+      <td style="color:#8b8fa8;white-space:nowrap">${t.date}</td>
+      <td>${t.merchant}<br><span class="card-tag">${t.card||''}</span></td>
+      <td><select class="cat-select" style="background:${col}22;color:${col}" onchange="setCatOverride('${id}','${cKey.replace(/'/g,"\\'")}',this.value)">${catOpts}</select></td>
+      <td style="text-align:right" class="${cls}">${t.credit?'−':''}${fmt(t.amount)}</td>
+      <td style="text-align:right;width:160px;white-space:nowrap">
+        <button class="reimb-btn${isReimb?' active':''}" onclick="toggleReimburse('${id}','${rKey.replace(/'/g,"\\'")}')">${isReimb?'↩ marked':'↩ reimburse'}</button>
+        <button class="exclude-btn${isExcl?' active':''}" onclick="toggleExclude('${id}','${eKey.replace(/'/g,"\\'")}')">${isExcl?'✕ excluded':'✕ exclude'}</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+//  TRENDS VIEW
+// ═══════════════════════════════════════════════
+function buildTrendsView() {
+  const container = document.getElementById('view-trends');
+
+  if (STATEMENTS.length < 2) {
+    container.innerHTML = `
+      <div class="card" style="margin-bottom:20px">
+        <h2>Monthly Spend Trend</h2>
+        <div class="placeholder-msg">Add a second month to see trends.<br><span style="font-size:11px;color:#5b8fa8;margin-top:6px;display:block">Share next month's statement PDF and it will appear here automatically.</span></div>
+      </div>
+      <div class="card">
+        <h2>Category Comparison</h2>
+        <div class="placeholder-msg">Needs at least 2 months of data.</div>
+      </div>`;
+    return;
+  }
+
+  const labels = STATEMENTS.map(s => s.label);
+  const totals = STATEMENTS.map(getNetSpend);
+
+  // Category trends — collect all unique cats
+  const allCats = [...new Set(STATEMENTS.flatMap(s => getCategoryTotals(s).map(c=>c.name)))];
+  const catDatasets = allCats.map((cat, i) => ({
+    label: cat,
+    data: STATEMENTS.map(s => { const c = getCategoryTotals(s).find(x=>x.name===cat); return c?c.amount:0; }),
+    backgroundColor: COLORS[i % COLORS.length] + 'bb',
+    borderColor: COLORS[i % COLORS.length],
+    borderWidth: 1, borderRadius: 4,
+  }));
+
+  container.innerHTML = `
+    <div class="trends-full card" style="margin-bottom:20px">
+      <h2>Monthly Net Spend</h2>
+      <div class="chart-med"><canvas id="trend-total"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Category Breakdown by Month</h2>
+      <div class="chart-tall"><canvas id="trend-cats"></canvas></div>
+    </div>`;
+
+  requestAnimationFrame(() => {
+    new Chart(document.getElementById('trend-total'), {
+      type:'bar',
+      data:{ labels, datasets:[{ data:totals, backgroundColor:COLORS.map(c=>c+'bb'), borderColor:COLORS, borderWidth:1, borderRadius:6 }] },
+      options:{ plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.y)}`}}}, scales:{ x:{grid:{display:false},ticks:{color:'#c8cad8'}}, y:{grid:{color:'#2a2d3e'},ticks:{color:'#8b8fa8',callback:v=>'₹'+(v/1000).toFixed(0)+'k'}} }, animation:{duration:700} }
+    });
+
+    new Chart(document.getElementById('trend-cats'), {
+      type:'bar',
+      data:{ labels, datasets:catDatasets },
+      options:{ plugins:{legend:{position:'right',labels:{color:'#c8cad8',font:{size:11},boxWidth:12}}}, scales:{ x:{stacked:true,grid:{display:false},ticks:{color:'#c8cad8'}}, y:{stacked:true,grid:{color:'#2a2d3e'},ticks:{color:'#8b8fa8',callback:v=>'₹'+(v/1000).toFixed(0)+'k'}} }, animation:{duration:700} }
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  RANGE VIEW
+// ═══════════════════════════════════════════════
+const MONTH_MAP = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+
+function parseTxnDate(t, stmt) {
+  // t.date like "5 Apr" or "28 Mar"
+  const parts = t.date.trim().split(' ');
+  const day = parseInt(parts[0], 10);
+  const mon = MONTH_MAP[parts[1]];
+  // year from stmt.id e.g. "apr-2026"
+  const year = parseInt(stmt.id.split('-')[1], 10);
+  return new Date(year, mon, day);
+}
+
+let rangeTxnChart = null;
+
+function buildRangeView() {
+  const container = document.getElementById('view-range');
+
+  // Compute min/max dates across all statements
+  let minDate = null, maxDate = null;
+  STATEMENTS.forEach(stmt => {
+    stmt.txns.forEach(t => {
+      const d = parseTxnDate(t, stmt);
+      if (!minDate || d < minDate) minDate = d;
+      if (!maxDate || d > maxDate) maxDate = d;
+    });
+  });
+
+  const toISO = d => d ? d.toISOString().slice(0,10) : '';
+
+  container.innerHTML = `
+    <div class="range-controls">
+      <label>From<input type="date" id="range-from" value="${toISO(minDate)}"></label>
+      <label>To<input type="date" id="range-to" value="${toISO(maxDate)}"></label>
+      <button class="range-apply" onclick="applyRange()">Apply</button>
+      <div class="range-summary" id="range-summary"></div>
+    </div>
+    <div class="range-kpi-row" id="range-kpis"></div>
+    <div class="charts-row" style="margin-bottom:24px" id="range-charts"></div>
+    <div class="txn-card" id="range-txns-card" style="display:none">
+      <div class="txn-top">
+        <h2 style="font-size:12px;font-weight:600;color:#8b8fa8;text-transform:uppercase;letter-spacing:.6px">Transactions</h2>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="range-search" class="search-box" placeholder="Search…" oninput="renderRangeTxns()" style="width:180px">
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px" id="range-cat-filters"></div>
+      <table class="txn"><thead><tr>
+        <th>Date</th><th>Merchant</th><th>Category</th><th style="text-align:right">Amount</th><th></th>
+      </tr></thead>
+      <tbody id="range-tbody"></tbody></table>
+      <div id="range-nores" style="display:none;text-align:center;padding:30px;color:#8b8fa8;font-size:13px">No transactions found.</div>
+    </div>`;
+
+  applyRange();
+}
+
+let rangeActiveCat = 'All';
+let rangeTxns = [];
+
+function applyRange() {
+  const fromVal = document.getElementById('range-from').value;
+  const toVal   = document.getElementById('range-to').value;
+  if (!fromVal || !toVal) return;
+
+  const from = new Date(fromVal);
+  const to   = new Date(toVal);
+  to.setHours(23,59,59);
+
+  // Collect all txns across statements in range
+  rangeTxns = [];
+  STATEMENTS.forEach(stmt => {
+    stmt.txns.forEach(t => {
+      const d = parseTxnDate(t, stmt);
+      if (d >= from && d <= to) {
+        rangeTxns.push({ ...t, _stmtId: stmt.id, _date: d });
+      }
+    });
+  });
+
+  rangeTxns.sort((a,b) => b.amount - a.amount);
+
+  // KPIs
+  const debits  = rangeTxns.filter(t => !t.credit && !excludeData[excludeKey(t, t._stmtId)]);
+  const credits  = rangeTxns.filter(t => t.credit);
+  const total   = debits.reduce((s,t)=>s+t.amount,0) - credits.reduce((s,t)=>s+t.amount,0);
+  const days    = Math.max(1, Math.round((to - from) / 86400000) + 1);
+  const avgDay  = total / days;
+
+  const catMap = {};
+  debits.forEach(t => { const c = effCat(t, t._stmtId); catMap[c]=(catMap[c]||0)+t.amount; });
+  const topCat = Object.entries(catMap).sort((a,b)=>b[1]-a[1])[0];
+
+  document.getElementById('range-kpis').innerHTML = `
+    <div class="kpi red"><div class="label">Total Spend</div><div class="value">${fmtL(total)}</div><div class="sub">${debits.length} transactions</div></div>
+    <div class="kpi blue"><div class="label">Avg / Day</div><div class="value">${fmt(avgDay)}</div><div class="sub">${days} days</div></div>
+    <div class="kpi yellow"><div class="label">Top Category</div><div class="value" style="font-size:16px">${topCat ? topCat[0] : '—'}</div><div class="sub">${topCat ? fmt(topCat[1]) : ''}</div></div>
+    <div class="kpi teal"><div class="label">Credits / Refunds</div><div class="value">${fmt(credits.reduce((s,t)=>s+t.amount,0))}</div><div class="sub">${credits.length} entries</div></div>
+    <div class="kpi"><div class="label">Date Range</div><div class="value" style="font-size:14px">${from.toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</div><div class="sub">to ${to.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</div></div>`;
+
+  // Charts
+  const cats = Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
+  const chartsEl = document.getElementById('range-charts');
+  chartsEl.innerHTML = `
+    <div class="card">
+      <h2>Category Breakdown</h2>
+      <div class="donut-wrap"><canvas id="range-donut"></canvas>
+        <div class="donut-center"><div class="big">${fmtL(total)}</div><div class="sm">net spend</div></div>
+      </div>
+      <div class="legend" id="range-legend"></div>
+    </div>
+    <div class="card">
+      <h2>Spend by Category</h2>
+      <div class="bar-wrap"><canvas id="range-bar"></canvas></div>
+    </div>`;
+
+  const legendEl = document.getElementById('range-legend');
+  legendEl.innerHTML = cats.map(([name,amt]) =>
+    `<div class="legend-item"><span class="dot" style="background:${catColor(name)}"></span><span class="legend-name">${name}</span><span class="legend-amt">${fmt(amt)}</span><span class="legend-pct">${total>0?Math.round(amt/total*100):0}%</span></div>`
+  ).join('');
+
+  if (rangeTxnChart) { rangeTxnChart.destroy(); rangeTxnChart = null; }
+
+  requestAnimationFrame(() => {
+    new Chart(document.getElementById('range-donut'), {
+      type:'doughnut',
+      data:{ labels:cats.map(c=>c[0]), datasets:[{ data:cats.map(c=>c[1]), backgroundColor:cats.map(c=>catColor(c[0])), borderWidth:2, borderColor:'#1a1d2e', hoverOffset:6 }] },
+      options:{ cutout:'72%', plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${fmt(ctx.parsed)}`}} }, animation:{duration:500} }
+    });
+    rangeTxnChart = new Chart(document.getElementById('range-bar'), {
+      type:'bar',
+      data:{ labels:cats.map(c=>c[0]), datasets:[{ data:cats.map(c=>c[1]), backgroundColor:cats.map(c=>catColor(c[0])+'bb'), borderColor:cats.map(c=>catColor(c[0])), borderWidth:1, borderRadius:4 }] },
+      options:{ indexAxis:'y', plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.x)}`}}}, scales:{ x:{grid:{color:'#2a2d3e'},ticks:{color:'#8b8fa8',callback:v=>'₹'+(v/1000).toFixed(0)+'k'}}, y:{grid:{display:false},ticks:{color:'#c8cad8',font:{size:11}}} }, animation:{duration:500} }
+    });
+  });
+
+  // Category + special filter buttons
+  rangeActiveCat = 'All';
+  const filterEl = document.getElementById('range-cat-filters');
+  const allCats = ['All', ...cats.map(c=>c[0])];
+  filterEl.innerHTML = allCats.map(c =>
+    `<button class="filter-btn${c==='All'?' active':''}" onclick="setRangeCat('${c}',this)">${c}</button>`
+  ).join('') +
+  `<button class="filter-btn" style="border-color:#2ec4b6" onclick="setRangeCat('__reimburse__',this)">↩ Reimbursable</button>` +
+  `<button class="filter-btn" style="border-color:#e63946" onclick="setRangeCat('__excluded__',this)">✕ Excluded</button>`;
+
+  document.getElementById('range-txns-card').style.display = 'block';
+  document.getElementById('range-summary').textContent = `${debits.length + credits.length} transactions matched`;
+  renderRangeTxns();
+}
+
+function setRangeCat(cat, btn) {
+  rangeActiveCat = cat;
+  document.querySelectorAll('#range-cat-filters .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderRangeTxns();
+}
+
+function renderRangeTxns() {
+  const search = (document.getElementById('range-search')?.value || '').toLowerCase();
+  const showExcluded = rangeActiveCat === '__excluded__';
+  const showReimb    = rangeActiveCat === '__reimburse__';
+
+  const filtered = rangeTxns.filter(t => {
+    const id    = t._stmtId;
+    const isExcl  = !!excludeData[excludeKey(t, id)];
+    if (showExcluded) return isExcl;
+    if (isExcl) return false;
+    if (showReimb && !reimburseData[reimbKey(t, id)]) return false;
+    if (!showReimb && rangeActiveCat !== 'All' && effCat(t, id) !== rangeActiveCat) return false;
+    if (search && !t.merchant.toLowerCase().includes(search) && !effCat(t, id).toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('range-tbody');
+  const nores  = document.getElementById('range-nores');
+  if (!filtered.length) { tbody.innerHTML=''; nores.style.display='block'; return; }
+  nores.style.display = 'none';
+
+  tbody.innerHTML = filtered.map(t => {
+    const id      = t._stmtId;
+    const cat     = effCat(t, id);
+    const col     = catColor(cat);
+    const cls     = t.credit ? 'amt-credit' : (t.amount>=10000?'amt-large':'amt-debit');
+    const rKey    = reimbKey(t, id);
+    const eKey    = excludeKey(t, id);
+    const isReimb = !!reimburseData[rKey];
+    const isExcl  = !!excludeData[eKey];
+    return `<tr class="${isReimb?'reimb-row':''} ${isExcl?'exclude-row':''}">
+      <td style="color:#8b8fa8;font-size:12px;white-space:nowrap">${t.date}</td>
+      <td>${t.merchant}<br><span class="card-tag">${t.card||''}</span></td>
+      <td><span class="cat-pill" style="background:${col}22;color:${col}">${cat}</span></td>
+      <td class="${cls}" style="text-align:right">${t.credit?'+':''}${fmt(t.amount)}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="reimb-btn${isReimb?' active':''}" onclick="toggleReimburse('${id}','${rKey.replace(/'/g,"\\'")}');renderRangeTxns()">${isReimb?'↩ marked':'↩ reimburse'}</button>
+        <button class="exclude-btn${isExcl?' active':''}" onclick="toggleExclude('${id}','${eKey.replace(/'/g,"\\'")}');renderRangeTxns()">${isExcl?'✕ excluded':'✕ exclude'}</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════════════
+let activeView = 'trends';
+
+function showView(id) {
+  activeView = id;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-'+id)?.classList.add('active');
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+id)?.classList.add('active');
+  if (id === 'range') requestAnimationFrame(applyRange);
+
+  // update header meta
+  if (id === 'trends' || id === 'range') {
+    document.getElementById('headerMeta').innerHTML = `<div>${STATEMENTS.length} statement${STATEMENTS.length>1?'s':''} loaded</div>`;
+  } else {
+    const stmt = STATEMENTS.find(s=>s.id===id);
+    document.getElementById('headerMeta').innerHTML = `<div>${stmt.period}</div><div style="margin-top:2px">Outstanding ₹${stmt.outstanding.toLocaleString('en-IN')}</div>`;
+  }
+}
+
+function buildTabs() {
+  const bar = document.getElementById('tabBar');
+
+  // Trends tab first
+  const trendsTab = document.createElement('div');
+  trendsTab.className = 'tab trends' + (activeView==='trends'?' active':'');
+  trendsTab.id = 'tab-trends';
+  trendsTab.textContent = 'Trends';
+  trendsTab.onclick = () => showView('trends');
+  bar.appendChild(trendsTab);
+
+  // Range tab
+  const rangeTab = document.createElement('div');
+  rangeTab.className = 'tab trends' + (activeView==='range'?' active':'');
+  rangeTab.id = 'tab-range';
+  rangeTab.textContent = 'Date Range';
+  rangeTab.onclick = () => showView('range');
+  bar.appendChild(rangeTab);
+
+  const div = document.createElement('div');
+  div.className = 'tab-divider';
+  bar.appendChild(div);
+
+  STATEMENTS.forEach(stmt => {
+    const tab = document.createElement('div');
+    tab.className = 'tab' + (activeView===stmt.id?' active':'');
+    tab.id = 'tab-'+stmt.id;
+    tab.textContent = stmt.label;
+    tab.onclick = () => showView(stmt.id);
+    bar.appendChild(tab);
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+buildTabs();
+buildTrendsView();
+buildRangeView();
+STATEMENTS.forEach(buildMonthView);
+showView(STATEMENTS.length ? STATEMENTS[0].id : 'trends');
+</script>
+</body>
+</html>

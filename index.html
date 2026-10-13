@@ -857,14 +857,14 @@ const STATEMENTS = [
   ,{
     id: 'sep-2026',
     label: 'Sep 2026',
-    period: '27 Aug – 1 Oct 2026',
-    minDue: 6485,
+    period: '24 Aug – 1 Oct 2026',
+    minDue: 12088,
     dueDate: '11 Oct 2026',
-    outstanding: 527791,
-    openingBalance: 414765,
-    billPaid: 414870,
+    outstanding: 639007,
+    openingBalance: 420735,
+    billPaid: 420840,
     loanOutstanding: 0,
-    loanNote: 'Axis Neo Rupay due 12 Oct ₹23,124 | Axis Atlas due 21 Oct ₹97,471',
+    loanNote: 'Axis Neo Rupay due 12 Oct ₹23,124 | Axis Atlas due 21 Oct ₹97,471 | Amex Platinum Travel due 12 Oct ₹5,603 (min)',
     addOnHolder: 'Sunita Yadav',
     addOnGross: 5000,
     addOnNet: 5000,
@@ -1089,6 +1089,16 @@ const STATEMENTS = [
       { date:'29 Sep', merchant:'ABCoffee', cat:'Food & Dining', amount:404.25, credit:false, card:'Axis Atlas' },
       { date:'30 Sep', merchant:'Uber', cat:'Transport', amount:333.88, credit:false, card:'Axis Atlas' },
       { date:'30 Sep', merchant:'Uber', cat:'Transport', amount:318.9, credit:false, card:'Axis Atlas' },
+      { date:'7 Sep', merchant:'Payment Received', cat:'Payments', amount:5969.79, credit:true, card:'Amex Platinum Travel' },
+      { date:'26 Aug', merchant:'Central Board of Direct Taxes (PayU)', cat:'Taxes', amount:74288.95, credit:false, card:'Amex Platinum Travel' },
+      { date:'26 Aug', merchant:'New Bombay Petroleum', cat:'Transport', amount:3763.15, credit:false, card:'Amex Platinum Travel' },
+      { date:'26 Aug', merchant:'Fuel convenience fee (1%)', cat:'Transport', amount:37.63, credit:false, card:'Amex Platinum Travel' },
+      { date:'27 Aug', merchant:'GST on fuel fee', cat:'Transport', amount:6.77, credit:false, card:'Amex Platinum Travel' },
+      { date:'29 Aug', merchant:'ACKO General Insurance (PayU)', cat:'Health', amount:12975, credit:false, card:'Amex Platinum Travel' },
+      { date:'3 Sep', merchant:'Airtel Payments Bank (PayU)', cat:'Subscriptions & Misc', amount:842.82, credit:false, card:'Amex Platinum Travel' },
+      { date:'11 Sep', merchant:'Custcap Solutions (Thane) [UNKNOWN - ask Nitin]', cat:'Subscriptions & Misc', amount:15265.5, credit:false, card:'Amex Platinum Travel' },
+      { date:'14 Sep', merchant:'Airtel Payments Bank (PayU)', cat:'Subscriptions & Misc', amount:3538.82, credit:false, card:'Amex Platinum Travel' },
+      { date:'13 Sep', merchant:'F1.com (USD 4.99)', cat:'Subscriptions & Misc', amount:497.67, credit:false, card:'Amex Platinum Travel' },
     ]
   }
   // ── PASTE NEXT MONTH HERE ──
@@ -1098,7 +1108,7 @@ const STATEMENTS = [
 //  CONSTANTS
 // ═══════════════════════════════════════════════
 const COLORS = ['#e63946','#f4a261','#2ec4b6','#5b8dee','#a78bfa','#fb923c','#34d399','#f472b6','#60a5fa','#facc15','#94a3b8','#e879f9'];
-const ALL_CATS = ['Food & Dining','Home & Furniture','Travel','Shopping','Subscriptions','Home Services','Grocery + QC','Health','Transport'];
+const ALL_CATS = ['Food & Dining','Home & Furniture','Travel','Shopping','Subscriptions','Home Services','Grocery + QC','Health','Transport','Taxes'];
 
 function catColor(name) {
   const idx = ALL_CATS.indexOf(name);

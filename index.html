@@ -886,15 +886,15 @@ const STATEMENTS = [
       { date:'28 Aug', merchant:'Google Workspace (refund)', cat:'Subscriptions & Misc', amount:2, credit:true, card:'HSBC TravelOne' },
       { date:'28 Aug', merchant:'Google Workspace (refund)', cat:'Subscriptions & Misc', amount:2, credit:true, card:'HSBC TravelOne' },
       { date:'28 Aug', merchant:'Google Workspace (refund)', cat:'Subscriptions & Misc', amount:2, credit:true, card:'HSBC TravelOne' },
-      { date:'29 Aug', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:20885.52, credit:false, card:'HSBC TravelOne' },
-      { date:'29 Aug', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:34634.70, credit:false, card:'HSBC TravelOne' },
+      { date:'29 Aug', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:20885.52, credit:false, card:'HSBC TravelOne', note:'Grandma death' },
+      { date:'29 Aug', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:34634.70, credit:false, card:'HSBC TravelOne', note:'Grandma death' },
       { date:'29 Aug', merchant:'UrbanClap', cat:'Home Services', amount:1759, credit:false, card:'HSBC TravelOne' },
       { date:'29 Aug', merchant:'MaestroEdge', cat:'Subscriptions & Misc', amount:129, credit:false, card:'HSBC TravelOne' },
       { date:'29 Aug', merchant:'Le Salon Cafe', cat:'Food & Dining', amount:3203, credit:false, card:'HSBC TravelOne' },
-      { date:'29 Aug', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:57028, credit:false, card:'HSBC TravelOne' },
+      { date:'29 Aug', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:57028, credit:false, card:'HSBC TravelOne', note:'SFO - Malaysia - Work' },
       { date:'30 Aug', merchant:'Uber', cat:'Transport', amount:330.67, credit:false, card:'HSBC TravelOne' },
       { date:'30 Aug', merchant:'Uber', cat:'Transport', amount:355.04, credit:false, card:'HSBC TravelOne' },
-      { date:'30 Aug', merchant:'IRCTC', cat:'Travel', amount:2896.42, credit:false, card:'HSBC TravelOne' },
+      { date:'30 Aug', merchant:'IRCTC', cat:'Travel', amount:2896.42, credit:false, card:'HSBC TravelOne', note:'Delhi to bom - pending reimbursement' },
       { date:'31 Aug', merchant:'Uber', cat:'Transport', amount:518.18, credit:false, card:'HSBC TravelOne' },
       { date:'31 Aug', merchant:'Uber', cat:'Transport', amount:298.07, credit:false, card:'HSBC TravelOne' },
       { date:'31 Aug', merchant:'Uber', cat:'Transport', amount:6.11, credit:false, card:'HSBC TravelOne' },
@@ -904,11 +904,11 @@ const STATEMENTS = [
       { date:'31 Aug', merchant:'Swiggy', cat:'Food & Dining', amount:343, credit:false, card:'HSBC TravelOne' },
       { date:'31 Aug', merchant:'Starbucks', cat:'Food & Dining', amount:1323, credit:false, card:'HSBC TravelOne' },
       { date:'1 Sep', merchant:'Travel Food Services', cat:'Food & Dining', amount:410.56, credit:false, card:'HSBC TravelOne' },
-      { date:'2 Sep', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:16287.61, credit:false, card:'HSBC TravelOne' },
+      { date:'2 Sep', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:16287.61, credit:false, card:'HSBC TravelOne', note:'LAX - Seattle - Work' },
       { date:'2 Sep', merchant:'Uber', cat:'Transport', amount:387.80, credit:false, card:'HSBC TravelOne' },
       { date:'2 Sep', merchant:'Uber', cat:'Transport', amount:261.15, credit:false, card:'HSBC TravelOne' },
       { date:'2 Sep', merchant:'Uber', cat:'Transport', amount:319.52, credit:false, card:'HSBC TravelOne' },
-      { date:'3 Sep', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:20331.34, credit:false, card:'HSBC TravelOne' },
+      { date:'3 Sep', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:20331.34, credit:false, card:'HSBC TravelOne', note:'Seattle - SFO - Work' },
       { date:'3 Sep', merchant:'Uber', cat:'Transport', amount:238.88, credit:false, card:'HSBC TravelOne' },
       { date:'3 Sep', merchant:'Zepto', cat:'Grocery + QC', amount:640, credit:false, card:'HSBC TravelOne' },
       { date:'3 Sep', merchant:'MaestroEdge', cat:'Subscriptions & Misc', amount:19.50, credit:false, card:'HSBC TravelOne' },
@@ -929,7 +929,7 @@ const STATEMENTS = [
       { date:'8 Sep', merchant:'Swiggy', cat:'Food & Dining', amount:1304, credit:false, card:'HSBC TravelOne' },
       { date:'8 Sep', merchant:'Uber', cat:'Transport', amount:262.81, credit:false, card:'HSBC TravelOne' },
       { date:'8 Sep', merchant:'Uber', cat:'Transport', amount:232.02, credit:false, card:'HSBC TravelOne' },
-      { date:'9 Sep', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:33306.56, credit:false, card:'HSBC TravelOne' },
+      { date:'9 Sep', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:33306.56, credit:false, card:'HSBC TravelOne', note:'Malaysia to India flight - personal' },
       { date:'9 Sep', merchant:'UrbanClap', cat:'Home Services', amount:84, credit:false, card:'HSBC TravelOne' },
       { date:'9 Sep', merchant:'Uber', cat:'Transport', amount:233.36, credit:false, card:'HSBC TravelOne' },
       { date:'9 Sep', merchant:'Uber', cat:'Transport', amount:255.44, credit:false, card:'HSBC TravelOne' },
@@ -941,7 +941,7 @@ const STATEMENTS = [
       { date:'11 Sep', merchant:'Snabbit (refund)', cat:'Home Services', amount:49.50, credit:true, card:'HSBC TravelOne' },
       { date:'11 Sep', merchant:'Uber', cat:'Transport', amount:262.58, credit:false, card:'HSBC TravelOne' },
       { date:'11 Sep', merchant:'Swiggy', cat:'Food & Dining', amount:517, credit:false, card:'HSBC TravelOne' },
-      { date:'11 Sep', merchant:'Neelkanth Hospitality', cat:'Travel', amount:19399, credit:false, card:'HSBC TravelOne' },
+      { date:'11 Sep', merchant:'Neelkanth Hospitality', cat:'Travel', amount:19399, credit:false, card:'HSBC TravelOne', note:'Team dinner - pending reimbursement' },
       { date:'12 Sep', merchant:'Zepto', cat:'Grocery + QC', amount:1052, credit:false, card:'HSBC TravelOne' },
       { date:'12 Sep', merchant:'Zepto', cat:'Grocery + QC', amount:904, credit:false, card:'HSBC TravelOne' },
       { date:'12 Sep', merchant:'Uber', cat:'Transport', amount:15.80, credit:false, card:'HSBC TravelOne' },
@@ -958,18 +958,18 @@ const STATEMENTS = [
       { date:'15 Sep', merchant:'Uber', cat:'Transport', amount:475.99, credit:false, card:'HSBC TravelOne' },
       { date:'15 Sep', merchant:'Uber', cat:'Transport', amount:214.32, credit:false, card:'HSBC TravelOne' },
       { date:'15 Sep', merchant:'Adanione (unknown Ahmedabad service)', cat:'Subscriptions & Misc', amount:250, credit:false, card:'HSBC TravelOne' },
-      { date:'16 Sep', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:27625, credit:false, card:'HSBC TravelOne' },
+      { date:'16 Sep', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:27625, credit:false, card:'HSBC TravelOne', note:'Meenakshi flight to malaysia - personal' },
       { date:'16 Sep', merchant:'Chipotle (LA, USD 14.65)', cat:'Food & Dining', amount:1406.18, credit:false, card:'HSBC TravelOne' },
       { date:'16 Sep', merchant:'Uber', cat:'Transport', amount:4, credit:false, card:'HSBC TravelOne' },
-      { date:'18 Sep', merchant:'Google Store (USD 151.48)', cat:'Shopping', amount:14551.13, credit:false, card:'HSBC TravelOne' },
+      { date:'18 Sep', merchant:'Google Store (USD 151.48)', cat:'Shopping', amount:14551.13, credit:false, card:'HSBC TravelOne', note:'Reimbursed 10650' },
       { date:'17 Sep', merchant:'Kieraya Furnishing (Furlenco)', cat:'Subscriptions & Misc', amount:7069.38, credit:false, card:'HSBC TravelOne' },
       { date:'19 Sep', merchant:'Lucky Strike Bever (LA, USD 77.94)', cat:'Food & Dining', amount:7475.62, credit:false, card:'HSBC TravelOne' },
       { date:'19 Sep', merchant:'Lovable (USD 5.00)', cat:'Subscriptions & Misc', amount:479.58, credit:false, card:'HSBC TravelOne' },
       { date:'20 Sep', merchant:'Amazon', cat:'Shopping', amount:972.30, credit:false, card:'HSBC TravelOne' },
-      { date:'24 Sep', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:51679.71, credit:false, card:'HSBC TravelOne' },
+      { date:'24 Sep', merchant:'HSBC TravelWithPoints (SGP flight)', cat:'Travel', amount:51679.71, credit:false, card:'HSBC TravelOne', note:'Mom dad flight to munich - pending reimbursement' },
       { date:'24 Sep', merchant:'Swiggy', cat:'Food & Dining', amount:700, credit:false, card:'HSBC TravelOne' },
       { date:'25 Sep', merchant:'Big Tree Entertainment (BookMyShow)', cat:'Subscriptions & Misc', amount:804.96, credit:false, card:'HSBC TravelOne' },
-      { date:'26 Sep', merchant:'Foot Locker (NY, USD 176.48)', cat:'Shopping', amount:16912.52, credit:false, card:'HSBC TravelOne' },
+      { date:'26 Sep', merchant:'Foot Locker (NY, USD 176.48)', cat:'Shopping', amount:16912.52, credit:false, card:'HSBC TravelOne', note:'Nikita Bday Gift' },
       { date:'24 Aug', merchant:'Vijay Kumar (UPI)', cat:'Shopping', amount:440, credit:false, card:'Axis Neo Rupay' },
       { date:'24 Aug', merchant:'Vijay Kumar Folowers (UPI)', cat:'Shopping', amount:150, credit:false, card:'Axis Neo Rupay' },
       { date:'25 Aug', merchant:'Nitin Saini So Sh Bhagwa (UPI)', cat:'Shopping', amount:15, credit:false, card:'Axis Neo Rupay' },
@@ -990,7 +990,7 @@ const STATEMENTS = [
       { date:'3 Sep', merchant:'Superb Live Bakery', cat:'Food & Dining', amount:440, credit:false, card:'Axis Neo Rupay' },
       { date:'3 Sep', merchant:'Benneco', cat:'Food & Dining', amount:150, credit:false, card:'Axis Neo Rupay' },
       { date:'5 Sep', merchant:'Rapido', cat:'Transport', amount:39, credit:false, card:'Axis Neo Rupay' },
-      { date:'6 Sep', merchant:'VFS Global (visa fee)', cat:'Travel', amount:18130, credit:false, card:'Axis Neo Rupay' },
+      { date:'6 Sep', merchant:'VFS Global (visa fee)', cat:'Travel', amount:18130, credit:false, card:'Axis Neo Rupay', note:'Meenakshi Visa' },
       { date:'7 Sep', merchant:'Parking (UPI)', cat:'Transport', amount:50, credit:false, card:'Axis Neo Rupay' },
       { date:'7 Sep', merchant:'Ramdev General Store', cat:'Grocery + QC', amount:20, credit:false, card:'Axis Neo Rupay' },
       { date:'8 Sep', merchant:'Benneco', cat:'Food & Dining', amount:210, credit:false, card:'Axis Neo Rupay' },
@@ -1213,6 +1213,12 @@ function setNote(stmtId, key, val) {
   else delete notesData[key];
   saveNotes();
 }
+// effNote: localStorage override (if user edited live) wins, else fall back to the
+// note baked into the transaction data (synced via git, survives across devices/browsers)
+function effNote(t, stmtId) {
+  const k = noteKey(t, stmtId);
+  return (notesData[k] !== undefined) ? notesData[k] : (t.note || '');
+}
 loadNotes();
 
 // ═══════════════════════════════════════════════
@@ -1332,7 +1338,7 @@ function exportCSV(stmtId) {
   const header = ['Date','Merchant','Card','Category','Amount','Credit','Note'];
   const lines = [header.join(',')];
   rows.forEach(t => {
-    lines.push([t.date, t.merchant, t.card||'', effCat(t, stmtId), t.amount, t.credit?'Yes':'No', notesData[noteKey(t,stmtId)]||''].map(csvCell).join(','));
+    lines.push([t.date, t.merchant, t.card||'', effCat(t, stmtId), t.amount, t.credit?'Yes':'No', effNote(t,stmtId)].map(csvCell).join(','));
   });
   const blob = new Blob([lines.join('\n')], { type:'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -1742,7 +1748,7 @@ function getFilteredTxns(id) {
       if (card !== 'All' && t.card !== card) return false;
       if (activeFilters[id] === '__reimburse__' && !reimburseData[reimbKey(t,id)]) return false;
       if (activeFilters[id] !== 'All' && activeFilters[id] !== '__reimburse__' && effCat(t, id) !== activeFilters[id]) return false;
-      if (search && !t.merchant.toLowerCase().includes(search) && !t.cat.toLowerCase().includes(search) && !(notesData[noteKey(t,id)]||'').toLowerCase().includes(search)) return false;
+      if (search && !t.merchant.toLowerCase().includes(search) && !t.cat.toLowerCase().includes(search) && !effNote(t,id).toLowerCase().includes(search)) return false;
       return true;
     })
     .sort((a,b) => b.amount - a.amount);
@@ -1764,7 +1770,7 @@ function renderTxns(id) {
     const nKey = noteKey(t, id);
     const isReimb = !!reimburseData[rKey];
     const isExcl  = !!excludeData[eKey];
-    const noteVal = notesData[nKey] || '';
+    const noteVal = effNote(t, id);
     const catOpts = allCategories().map(c => `<option value="${c}"${c===cat?' selected':''}>${c}</option>`).join('');
     return `<tr class="${isReimb?'reimb-row':''} ${isExcl?'exclude-row':''}">
       <td style="color:#8b8fa8;white-space:nowrap">${t.date}</td>
@@ -2009,7 +2015,7 @@ function renderRangeTxns() {
     if (isExcl) return false;
     if (showReimb && !reimburseData[reimbKey(t, id)]) return false;
     if (!showReimb && rangeActiveCat !== 'All' && effCat(t, id) !== rangeActiveCat) return false;
-    if (search && !t.merchant.toLowerCase().includes(search) && !effCat(t, id).toLowerCase().includes(search) && !(notesData[noteKey(t,id)]||'').toLowerCase().includes(search)) return false;
+    if (search && !t.merchant.toLowerCase().includes(search) && !effCat(t, id).toLowerCase().includes(search) && !effNote(t,id).toLowerCase().includes(search)) return false;
     return true;
   });
 
@@ -2028,7 +2034,7 @@ function renderRangeTxns() {
     const nKey    = noteKey(t, id);
     const isReimb = !!reimburseData[rKey];
     const isExcl  = !!excludeData[eKey];
-    const noteVal = notesData[nKey] || '';
+    const noteVal = effNote(t, id);
     return `<tr class="${isReimb?'reimb-row':''} ${isExcl?'exclude-row':''}">
       <td style="color:#8b8fa8;font-size:12px;white-space:nowrap">${t.date}</td>
       <td>${t.merchant}<br><span class="card-tag">${t.card||''}</span></td>

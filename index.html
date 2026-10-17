@@ -1473,7 +1473,7 @@ function fmtL(n) { return n >= 100000 ? '₹' + (n/100000).toFixed(2) + 'L' : fm
 // month-over-month comparisons don't double-count carried debt.
 function getStats(stmt, card) {
   const allTxns = card === 'All' ? stmt.txns : stmt.txns.filter(t => t.card === card);
-  const txns = allTxns.filter(t => !excludeData[excludeKey(t, stmt.id)] && !reimburseData[reimbKey(t, stmt.id)]);
+  const txns = allTxns.filter(t => !effExcl(t, stmt.id) && !effReimb(t, stmt.id));
   const showAddOn = card === 'All' || card === 'HSBC TravelOne';
   const addOnNet = showAddOn ? stmt.addOnNet : 0;
   const spendTxns = txns.filter(t => t.cat !== 'Payments');
@@ -1505,13 +1505,19 @@ let reimburseData = {};
 function loadReimburse() { try { reimburseData = JSON.parse(localStorage.getItem('reimburse_v1')||'{}'); } catch(e) { reimburseData = {}; } }
 function saveReimburse() { localStorage.setItem('reimburse_v1', JSON.stringify(reimburseData)); }
 function reimbKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}`; }
+// effReimb: localStorage override (if user toggled live) wins, else fall back to the
+// reimbursable flag baked into the transaction data (synced via git, survives across devices/browsers)
+function effReimb(t, stmtId) {
+  const k = reimbKey(t, stmtId);
+  return (reimburseData[k] !== undefined) ? reimburseData[k] : !!t.reimbursable;
+}
 function getReimbTotal(stmtId) {
   const stmt = STATEMENTS.find(s=>s.id===stmtId);
-  return stmt.txns.filter(t => reimburseData[reimbKey(t,stmtId)] && !t.credit).reduce((s,t)=>s+t.amount,0);
+  return stmt.txns.filter(t => effReimb(t,stmtId) && !t.credit).reduce((s,t)=>s+t.amount,0);
 }
 function getReimbCount(stmtId) {
   const stmt = STATEMENTS.find(s=>s.id===stmtId);
-  return stmt.txns.filter(t => reimburseData[reimbKey(t,stmtId)] && !t.credit).length;
+  return stmt.txns.filter(t => effReimb(t,stmtId) && !t.credit).length;
 }
 function toggleReimburse(stmtId, key) {
   reimburseData[key] = !reimburseData[key];
@@ -1528,13 +1534,19 @@ let excludeData = {};
 function loadExclude() { try { excludeData = JSON.parse(localStorage.getItem('exclude_v1')||'{}'); } catch(e) { excludeData = {}; } }
 function saveExclude() { localStorage.setItem('exclude_v1', JSON.stringify(excludeData)); }
 function excludeKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}`; }
+// effExcl: localStorage override (if user toggled live) wins, else fall back to the
+// exclude flag baked into the transaction data (synced via git, survives across devices/browsers)
+function effExcl(t, stmtId) {
+  const k = excludeKey(t, stmtId);
+  return (excludeData[k] !== undefined) ? excludeData[k] : !!t.exclude;
+}
 function getExcludeTotal(stmtId) {
   const stmt = STATEMENTS.find(s=>s.id===stmtId);
-  return stmt.txns.filter(t => excludeData[excludeKey(t,stmtId)] && !t.credit).reduce((s,t)=>s+t.amount,0);
+  return stmt.txns.filter(t => effExcl(t,stmtId) && !t.credit).reduce((s,t)=>s+t.amount,0);
 }
 function getExcludeCount(stmtId) {
   const stmt = STATEMENTS.find(s=>s.id===stmtId);
-  return stmt.txns.filter(t => excludeData[excludeKey(t,stmtId)]).length;
+  return stmt.txns.filter(t => effExcl(t,stmtId)).length;
 }
 function toggleExclude(stmtId, key) {
   excludeData[key] = !excludeData[key];
@@ -2085,11 +2097,11 @@ function getFilteredTxns(id) {
   const showExcluded = activeFilters[id] === '__excluded__';
   return stmt.txns
     .filter(t => {
-      const isExcl = !!excludeData[excludeKey(t, id)];
+      const isExcl = effExcl(t, id);
       if (showExcluded) return isExcl;
       if (isExcl) return false;
       if (card !== 'All' && t.card !== card) return false;
-      if (activeFilters[id] === '__reimburse__' && !reimburseData[reimbKey(t,id)]) return false;
+      if (activeFilters[id] === '__reimburse__' && !effReimb(t,id)) return false;
       if (activeFilters[id] !== 'All' && activeFilters[id] !== '__reimburse__' && effCat(t, id) !== activeFilters[id]) return false;
       if (search && !t.merchant.toLowerCase().includes(search) && !t.cat.toLowerCase().includes(search) && !effNote(t,id).toLowerCase().includes(search)) return false;
       return true;
@@ -2111,8 +2123,8 @@ function renderTxns(id) {
     const eKey = excludeKey(t, id);
     const cKey = catOverrideKey(t, id);
     const nKey = noteKey(t, id);
-    const isReimb = !!reimburseData[rKey];
-    const isExcl  = !!excludeData[eKey];
+    const isReimb = effReimb(t, id);
+    const isExcl  = effExcl(t, id);
     const noteVal = effNote(t, id);
     const catOpts = allCategories().map(c => `<option value="${c}"${c===cat?' selected':''}>${c}</option>`).join('');
     return `<tr class="${isReimb?'reimb-row':''} ${isExcl?'exclude-row':''}">
@@ -2271,7 +2283,7 @@ function applyRange() {
   rangeTxns.sort((a,b) => b.amount - a.amount);
 
   // KPIs
-  const debits  = rangeTxns.filter(t => !t.credit && !excludeData[excludeKey(t, t._stmtId)]);
+  const debits  = rangeTxns.filter(t => !t.credit && !effExcl(t, t._stmtId));
   const credits  = rangeTxns.filter(t => t.credit);
   const total   = debits.reduce((s,t)=>s+t.amount,0) - credits.reduce((s,t)=>s+t.amount,0);
   const days    = Math.max(1, Math.round((to - from) / 86400000) + 1);
@@ -2353,10 +2365,10 @@ function renderRangeTxns() {
 
   const filtered = rangeTxns.filter(t => {
     const id    = t._stmtId;
-    const isExcl  = !!excludeData[excludeKey(t, id)];
+    const isExcl  = effExcl(t, id);
     if (showExcluded) return isExcl;
     if (isExcl) return false;
-    if (showReimb && !reimburseData[reimbKey(t, id)]) return false;
+    if (showReimb && !effReimb(t, id)) return false;
     if (!showReimb && rangeActiveCat !== 'All' && effCat(t, id) !== rangeActiveCat) return false;
     if (search && !t.merchant.toLowerCase().includes(search) && !effCat(t, id).toLowerCase().includes(search) && !effNote(t,id).toLowerCase().includes(search)) return false;
     return true;
@@ -2375,8 +2387,8 @@ function renderRangeTxns() {
     const rKey    = reimbKey(t, id);
     const eKey    = excludeKey(t, id);
     const nKey    = noteKey(t, id);
-    const isReimb = !!reimburseData[rKey];
-    const isExcl  = !!excludeData[eKey];
+    const isReimb = effReimb(t, id);
+    const isExcl  = effExcl(t, id);
     const noteVal = effNote(t, id);
     return `<tr class="${isReimb?'reimb-row':''} ${isExcl?'exclude-row':''}">
       <td style="color:#8b8fa8;font-size:12px;white-space:nowrap">${t.date}</td>

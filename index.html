@@ -2037,8 +2037,11 @@ function getFilteredTxns(id) {
       const isExcl = effExcl(t, id);
       if (showExcluded) return isExcl;
       if (isExcl) return false;
+      const isReimb = effReimb(t, id);
+      const showReimb = activeFilters[id] === '__reimburse__';
+      if (showReimb) return isReimb;
+      if (isReimb) return false;
       if (card !== 'All' && t.card !== card) return false;
-      if (activeFilters[id] === '__reimburse__' && !effReimb(t,id)) return false;
       if (activeFilters[id] !== 'All' && activeFilters[id] !== '__reimburse__' && effCat(t, id) !== activeFilters[id]) return false;
       if (search && !t.merchant.toLowerCase().includes(search) && !t.cat.toLowerCase().includes(search) && !effNote(t,id).toLowerCase().includes(search)) return false;
       return true;

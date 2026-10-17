@@ -243,6 +243,10 @@ tr.exclude-row td:nth-child(2) { text-decoration:line-through; }
   .kpi-row, .range-kpi-row { grid-template-columns: 1fr; }
   .search-box { width: 140px; }
 }
+.cloud-sync-indicator { margin-top:4px; font-size:11px; min-height:14px; }
+.cloud-sync-indicator.sync-syncing { color:#f4a261; }
+.cloud-sync-indicator.sync-ok { color:#2ec4b6; }
+.cloud-sync-indicator.sync-err { color:#e63946; }
 </style>
 </head>
 <body>
@@ -254,6 +258,7 @@ tr.exclude-row td:nth-child(2) { text-decoration:line-through; }
   </div>
   <div style="font-size:12px;color:#8b8fa8;text-align:right">
     <div id="headerMeta"></div>
+    <div id="cloud-sync-indicator" class="cloud-sync-indicator"></div>
   </div>
 </div>
 
@@ -1499,6 +1504,73 @@ function getNetSpend(stmt)        { return getStats(stmt,'All').netSpend; }
 function getNewCharges(stmt)      { return getStats(stmt,'All').newCharges; }
 
 // ═══════════════════════════════════════════════
+//  CLOUD SYNC — durable layer via Cloudflare Worker + KV
+// ═══════════════════════════════════════════════
+// Browser-only localStorage used to be the sole store for reimburse/exclude/
+// notes/catOverrides/budget — gone on a cache clear, invisible across
+// devices. This Worker+KV layer makes those edits durable: every save also
+// pushes the combined state to the Worker, and page load pulls the latest
+// from the Worker before rendering, so any browser/device sees the same
+// data. The HTML file's baked-in t.reimbursable/t.exclude/t.note fields
+// remain the long-term canonical record (synced via git); this cloud layer
+// is the live scratch space between those periodic reconciliations.
+const CLOUD_SYNC_URL = 'https://spend-dashboard-worker.nitinyadav17897.workers.dev/state';
+const CLOUD_SYNC_TOKEN = 'xN8kE-fxC98qpvuk-LAUaDR8osYbmiK7gsMQ759ODio';
+let cloudSyncStatus = 'idle'; // idle | syncing | synced | error
+let _cloudSyncTimer = null;
+
+function setCloudSyncStatus(s) {
+  cloudSyncStatus = s;
+  const el = document.getElementById('cloud-sync-indicator');
+  if (!el) return;
+  const map = {
+    idle:    { text: '', cls: '' },
+    syncing: { text: '⏳ Syncing…', cls: 'sync-syncing' },
+    synced:  { text: '☁ Synced', cls: 'sync-ok' },
+    error:   { text: '⚠ Sync failed (saved locally)', cls: 'sync-err' },
+  };
+  const m = map[s] || map.idle;
+  el.textContent = m.text;
+  el.className = 'cloud-sync-indicator ' + m.cls;
+}
+
+function pullCloudState() {
+  return fetch(CLOUD_SYNC_URL, { method: 'GET' })
+    .then(r => r.ok ? r.json() : {})
+    .then(data => {
+      if (data.reimburse)    reimburseData = data.reimburse;
+      if (data.exclude)      excludeData   = data.exclude;
+      if (data.notes)        notesData     = data.notes;
+      if (data.catOverrides) catOverrides  = data.catOverrides;
+      if (data.budget)       budgetData    = data.budget;
+      // mirror into localStorage so an offline reload still has the latest pull
+      saveReimburse(); saveExclude(); saveNotes(); saveCatOverrides(); saveBudget();
+    })
+    .catch(() => { /* offline or Worker unreachable — fall back to localStorage silently */ });
+}
+
+function pushCloudState() {
+  setCloudSyncStatus('syncing');
+  clearTimeout(_cloudSyncTimer);
+  _cloudSyncTimer = setTimeout(() => {
+    const payload = JSON.stringify({
+      reimburse: reimburseData,
+      exclude: excludeData,
+      notes: notesData,
+      catOverrides: catOverrides,
+      budget: budgetData,
+    });
+    fetch(CLOUD_SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Auth-Token': CLOUD_SYNC_TOKEN },
+      body: payload,
+    })
+      .then(r => setCloudSyncStatus(r.ok ? 'synced' : 'error'))
+      .catch(() => setCloudSyncStatus('error'));
+  }, 600); // debounce rapid toggles into one request
+}
+
+// ═══════════════════════════════════════════════
 //  REIMBURSABLE — storage + helpers
 // ═══════════════════════════════════════════════
 let reimburseData = {};
@@ -1523,6 +1595,7 @@ function toggleReimburse(stmtId, key) {
   reimburseData[key] = !reimburseData[key];
   if (!reimburseData[key]) delete reimburseData[key];
   saveReimburse();
+  pushCloudState();
   updateMonthView(stmtId, activeTopCard[stmtId] || 'All');
 }
 loadReimburse();
@@ -1552,6 +1625,7 @@ function toggleExclude(stmtId, key) {
   excludeData[key] = !excludeData[key];
   if (!excludeData[key]) delete excludeData[key];
   saveExclude();
+  pushCloudState();
   updateMonthView(stmtId, activeTopCard[stmtId] || 'All');
 }
 loadExclude();
@@ -1567,6 +1641,7 @@ function setNote(stmtId, key, val) {
   if (val && val.trim()) notesData[key] = val.trim();
   else delete notesData[key];
   saveNotes();
+  pushCloudState();
 }
 // effNote: localStorage override (if user edited live) wins, else fall back to the
 // note baked into the transaction data (synced via git, survives across devices/browsers)
@@ -1594,6 +1669,7 @@ function allCategories() {
 function setCatOverride(stmtId, key, newCat) {
   catOverrides[key] = newCat;
   saveCatOverrides();
+  pushCloudState();
   updateMonthView(stmtId, activeTopCard[stmtId] || 'All');
 }
 loadCatOverrides();
@@ -1608,6 +1684,7 @@ function setBudget(val) {
   const n = Math.max(0, Math.round(Number(val) || 0));
   budgetData.cap = n;
   saveBudget();
+  pushCloudState();
   STATEMENTS.forEach(s => renderBudget(s.id)); // cap is global → refresh every month
 }
 loadBudget();
@@ -2467,6 +2544,15 @@ buildTrendsView();
 buildRangeView();
 STATEMENTS.forEach(buildMonthView);
 showView(STATEMENTS.length ? STATEMENTS[0].id : 'trends');
+
+// Pull latest cloud state (async) and re-render once it lands, so the page
+// shows cached/local data instantly but corrects to the synced state a
+// moment later rather than staying blank while waiting on the network.
+pullCloudState().then(() => {
+  STATEMENTS.forEach(s => updateMonthView(s.id, activeTopCard[s.id] || 'All'));
+  _allCategoriesCache = null; // category overrides may have changed the set
+});
+
 </script>
 </body>
 </html>

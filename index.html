@@ -1438,6 +1438,10 @@ function pushCloudState() {
 //  REIMBURSABLE (per-month flag, unchanged behaviour) — storage + helpers
 // ═══════════════════════════════════════════════
 let reimburseData = {};
+let _txnRegistry = {}; // key -> txn object, populated whenever a table renders, so
+                        // toggle handlers can look up the real txn (and its baked-in
+                        // reimbursable/exclude flags) by key without re-serializing
+                        // the whole object into every onclick attribute.
 function loadReimburse() { try { reimburseData = JSON.parse(localStorage.getItem('reimburse_v1')||'{}'); } catch(e) { reimburseData = {}; } }
 function saveReimburse() { localStorage.setItem('reimburse_v1', JSON.stringify(reimburseData)); }
 function reimbKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}`; }
@@ -1454,8 +1458,13 @@ function getReimbCount(stmtId) {
   return stmt.txns.filter(t => effReimb(t,stmtId) && !t.credit).length;
 }
 function toggleReimburse(stmtId, key) {
-  reimburseData[key] = !reimburseData[key];
-  if (!reimburseData[key]) delete reimburseData[key];
+  const t = _txnRegistry[key];
+  if (!t) return;
+  const current = effReimb(t, stmtId);
+  reimburseData[key] = !current;
+  // if flipping back to the baked-in default, drop the override entirely
+  // instead of storing a redundant explicit value
+  if (reimburseData[key] === !!t.reimbursable) delete reimburseData[key];
   saveReimburse();
   pushCloudState();
   updateMonthView(stmtId, activeTopCard[stmtId] || 'All');
@@ -1587,8 +1596,11 @@ function getExcludeCount(stmtId) {
   return stmt.txns.filter(t => effExcl(t,stmtId)).length;
 }
 function toggleExclude(stmtId, key) {
-  excludeData[key] = !excludeData[key];
-  if (!excludeData[key]) delete excludeData[key];
+  const t = _txnRegistry[key];
+  if (!t) return;
+  const current = effExcl(t, stmtId);
+  excludeData[key] = !current;
+  if (excludeData[key] === !!t.exclude) delete excludeData[key];
   saveExclude();
   pushCloudState();
   updateMonthView(stmtId, activeTopCard[stmtId] || 'All');
@@ -2040,6 +2052,7 @@ function renderTxns(id) {
   const nores = document.getElementById('nores-'+id);
   if (!filtered.length) { tbody.innerHTML=''; nores.style.display='block'; return; }
   nores.style.display='none';
+  filtered.forEach(t => { _txnRegistry[reimbKey(t, id)] = t; });
   tbody.innerHTML = filtered.map(t => {
     const cat  = effCat(t, id);
     const col  = catColor(cat);
@@ -2295,6 +2308,7 @@ function renderRangeTxns() {
   const nores  = document.getElementById('range-nores');
   if (!filtered.length) { tbody.innerHTML=''; nores.style.display='block'; return; }
   nores.style.display = 'none';
+  filtered.forEach(t => { _txnRegistry[reimbKey(t, t._stmtId)] = t; });
 
   tbody.innerHTML = filtered.map(t => {
     const id      = t._stmtId;

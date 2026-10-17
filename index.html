@@ -1357,9 +1357,14 @@ function fmtL(n) { return n >= 100000 ? '₹' + (n/100000).toFixed(2) + 'L' : fm
 function getStats(stmt, card) {
   const allTxns = card === 'All' ? stmt.txns : stmt.txns.filter(t => t.card === card);
   const txns = allTxns.filter(t => !effExcl(t, stmt.id));
-  const netSpend = txns.reduce((s,t)=>s+(t.credit?-t.amount:t.amount),0);
+  // Net Spend / category totals exclude anything marked reimbursable — that
+  // money is coming back, so it's not real out-of-pocket spend. The
+  // transactions list (txns, returned below) still shows reimbursable rows
+  // highlighted, just not counted in the headline numbers.
+  const spendTxns = txns.filter(t => !effReimb(t, stmt.id));
+  const netSpend = spendTxns.reduce((s,t)=>s+(t.credit?-t.amount:t.amount),0);
   const catMap = {};
-  txns.filter(t=>!t.credit).forEach(t => { const c=effCat(t,stmt.id); catMap[c]=(catMap[c]||0)+t.amount; });
+  spendTxns.filter(t=>!t.credit).forEach(t => { const c=effCat(t,stmt.id); catMap[c]=(catMap[c]||0)+t.amount; });
   const cats = Object.entries(catMap)
     .map(([name,amount]) => ({name, amount, color: catColor(name)}))
     .sort((a,b)=>b.amount-a.amount);
@@ -2197,8 +2202,8 @@ function applyRange() {
 
   rangeTxns.sort((a,b) => b.amount - a.amount);
 
-  const debits  = rangeTxns.filter(t => !t.credit && !effExcl(t, t._stmtId));
-  const credits  = rangeTxns.filter(t => t.credit);
+  const debits  = rangeTxns.filter(t => !t.credit && !effExcl(t, t._stmtId) && !effReimb(t, t._stmtId));
+  const credits  = rangeTxns.filter(t => t.credit && !effReimb(t, t._stmtId));
   const total   = debits.reduce((s,t)=>s+t.amount,0) - credits.reduce((s,t)=>s+t.amount,0);
   const days    = Math.max(1, Math.round((to - from) / 86400000) + 1);
   const avgDay  = total / days;

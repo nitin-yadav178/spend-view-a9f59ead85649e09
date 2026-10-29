@@ -1,0 +1,16 @@
+{
+  "url": "https://api.github.com/repos/nitin-yadav178/spend-view-a9f59ead85649e09/pages",
+  "status": null,
+  "cname": null,
+  "custom_404": false,
+  "html_url": "https://nitin-yadav178.github.io/spend-view-a9f59ead85649e09/",
+  "build_type": "legacy",
+  "source": {
+    "branch": "main",
+    "path": "/"
+  },
+  "public": true,
+  "protected_domain_state": null,
+  "pending_domain_unverified_at": null,
+  "https_enforced": true
+}

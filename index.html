@@ -45,10 +45,11 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 
 /* ── KPI row ── */
 .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px; }
-.kpi { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px 22px; }
+.kpi { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px 22px; position:relative; overflow:hidden; }
 .kpi .label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
 .kpi .value { font-size:24px; font-weight:700; }
 .kpi .sub { font-size:12px; color:var(--muted); margin-top:4px; }
+.kpi-spark { position:absolute; right:14px; bottom:10px; width:72px; height:30px; opacity:.85; }
 .kpi.red .value { color:var(--danger); }
 .kpi.yellow .value { color:var(--warning); }
 .kpi.teal .value { color:var(--success); }
@@ -59,10 +60,10 @@ body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; backg
 .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px; }
 .card h2 { font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; margin-bottom:18px; }
 
-.donut-wrap { position:relative; width:220px; height:220px; margin:0 auto 18px; }
+.donut-wrap { position:relative; width:280px; height:280px; margin:0 auto 18px; filter:drop-shadow(0 4px 20px rgba(91,97,168,.25)); }
 .donut-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; pointer-events:none; }
-.donut-center .big { font-size:20px; font-weight:700; color:var(--ink-strong); }
-.donut-center .sm { font-size:11px; color:var(--muted); }
+.donut-center .big { font-size:25px; font-weight:800; color:var(--ink-strong); letter-spacing:-.3px; }
+.donut-center .sm { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-top:2px; }
 
 .legend { display:flex; flex-direction:column; gap:6px; }
 .legend-item { display:flex; align-items:center; justify-content:space-between; padding:5px 0; border-bottom:1px solid var(--divider); }
@@ -1434,6 +1435,17 @@ const STATEMENTS = [
       { date:"2 Oct", merchant:"DECATHLON-KLCC (refund)", cat:"Shopping", amount:1164.67, credit:true, card:"HSBC TravelOne", note:"Malaysia, MYR 49.0 reversal", source:"statement" },
       { date:"24 Oct", merchant:"ZES*HUDLE", cat:"Subscriptions & Misc", amount:1044.0, credit:false, card:"HSBC TravelOne", note:"New Delhi - verify merchant", source:"statement" },
       { date:"9 Oct", merchant:"NL0125 - H&M AMSTERDAM (refund)", cat:"Shopping", amount:1630.47, credit:true, card:"HSBC TravelOne", note:"EUR 15.0 reversal", source:"statement" },
+      { date:"30 Oct", merchant:"Daalchini", cat:"Food & Dining", amount:30.0, credit:false, card:"Axis Neo/Flipkart", source:"email" },
+      { date:"30 Oct", merchant:"RAZ*SWIGGY", cat:"Food & Dining", amount:937.0, credit:false, card:"HSBC TravelOne", source:"email" },
+      { date:"30 Oct", merchant:"AMAZON PAY INDIA PRIVA", cat:"Shopping", amount:1744.0, credit:false, card:"HSBC TravelOne", source:"email" },
+      { date:"30 Oct", merchant:"UBER INDIA", cat:"Transport", amount:324.36, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
+      { date:"31 Oct", merchant:"Ainal fruit", cat:"Grocery + QC", amount:180.0, credit:false, card:"Axis Neo/Flipkart", source:"email" },
+      { date:"31 Oct", merchant:"Dilip shah", cat:"Grocery + QC", amount:250.0, credit:false, card:"Axis Neo/Flipkart", source:"email", note:"unverified merchant - local vendor assumed" },
+      { date:"31 Oct", merchant:"CANVASTHE F", cat:"Food & Dining", amount:866.0, credit:false, card:"Axis Atlas", source:"email" },
+      { date:"31 Oct", merchant:"ZEPTO MARKETPLACE PRIV", cat:"Grocery + QC", amount:436.31, credit:false, card:"HSBC TravelOne", source:"email" },
+      { date:"31 Oct", merchant:"UBER INDIA SYSTEMS", cat:"Transport", amount:176.93, credit:false, card:"HSBC TravelOne", source:"email" },
+      { date:"31 Oct", merchant:"UBER INDIA SYSTEMS", cat:"Transport", amount:202.64, credit:false, card:"HSBC TravelOne", source:"email" },
+      { date:"31 Oct", merchant:"UBER INDIA SYSTEMS", cat:"Transport", amount:339.53, credit:false, card:"HSBC TravelOne", source:"email" },
     ]
   }
 ];
@@ -1441,7 +1453,7 @@ const STATEMENTS = [
 // ═══════════════════════════════════════════════
 //  CONSTANTS
 // ═══════════════════════════════════════════════
-const COLORS = ['#e63946','#f4a261','#2ec4b6','#5b8dee','#a78bfa','#fb923c','#34d399','#f472b6','#60a5fa','#facc15','#94a3b8','#e879f9'];
+const COLORS = ['#ef476f','#ffa62b','#06d6a0','#4ea8de','#a685e2','#ff7f50','#2dd4bf','#f472b6','#60a5fa','#ffd60a','#9ca3af','#e879f9'];
 const ALL_CATS = ['Food & Dining','Home & Furniture','Travel','Shopping','Subscriptions','Home Services','Grocery + QC','Health','Transport','Taxes'];
 
 function catColor(name) {
@@ -1984,20 +1996,42 @@ const stmtCharts = {};
 const activeTopCard = {};
 const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+function renderSparkline(stmtId) {
+  const canvas = document.getElementById('spark-spend-'+stmtId);
+  if (!canvas) return;
+  const idx = STATEMENTS.findIndex(s => s.id === stmtId);
+  const start = Math.max(0, idx - 5);
+  const slice = STATEMENTS.slice(start, idx + 1);
+  const data = slice.map(getNetSpend);
+  if (stmtCharts[stmtId]?.spark) stmtCharts[stmtId].spark.destroy();
+  const spark = new Chart(canvas, {
+    type: 'line',
+    data: { labels: slice.map(s=>s.label), datasets: [{ data, borderColor:'#ef476f', backgroundColor:'rgba(239,71,111,.15)', borderWidth:2, fill:true, tension:.35, pointRadius:0 }] },
+    options: {
+      responsive:false, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{enabled:false} },
+      scales:{ x:{display:false}, y:{display:false} },
+      animation:{duration:REDUCED_MOTION?0:600, easing:'easeOutQuart'},
+      elements:{ point:{radius:0} },
+    }
+  });
+  stmtCharts[stmtId] = { ...(stmtCharts[stmtId]||{}), spark };
+}
+
 function renderCharts(stmt, cats, netSpend) {
   const id = stmt.id;
   if (stmtCharts[id]) { stmtCharts[id].donut?.destroy(); stmtCharts[id].bar?.destroy(); }
   const donut = new Chart(document.getElementById('donut-'+id), {
     type:'doughnut',
     data:{ labels:cats.map(c=>c.name), datasets:[{ data:cats.map(c=>c.amount), backgroundColor:cats.map(c=>c.color), borderWidth:2, borderColor:'#1a1d2e', hoverOffset:5 }] },
-    options:{ cutout:'66%', plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx=>` ${fmt(ctx.parsed)} (${((ctx.parsed/netSpend)*100).toFixed(1)}%)` }}}, animation:{duration:REDUCED_MOTION?0:400} }
+    options:{ cutout:'66%', plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx=>` ${fmt(ctx.parsed)} (${((ctx.parsed/netSpend)*100).toFixed(1)}%)` }}}, animation:{duration:REDUCED_MOTION?0:700, easing:'easeOutQuart'} }
   });
   const bar = new Chart(document.getElementById('bar-'+id), {
     type:'bar',
     data:{ labels:cats.map(c=>c.name), datasets:[{ data:cats.map(c=>c.amount), backgroundColor:cats.map(c=>c.color+'bb'), borderColor:cats.map(c=>c.color), borderWidth:1, borderRadius:5 }] },
-    options:{ indexAxis:'y', plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.x)}`}}}, scales:{ x:{grid:{color:'#2a2d3e'}, ticks:{color:'#8b8fa8', callback:v=>'₹'+(v/1000).toFixed(0)+'k'}}, y:{grid:{display:false}, ticks:{color:'#c8cad8', font:{size:12}}} }, animation:{duration:REDUCED_MOTION?0:400} }
+    options:{ indexAxis:'y', plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.x)}`}}}, scales:{ x:{grid:{color:'#2a2d3e'}, ticks:{color:'#8b8fa8', callback:v=>'₹'+(v/1000).toFixed(0)+'k'}}, y:{grid:{display:false}, ticks:{color:'#c8cad8', font:{size:12}}} }, animation:{duration:REDUCED_MOTION?0:700, easing:'easeOutQuart'} }
   });
-  stmtCharts[id] = { donut, bar };
+  stmtCharts[id] = { ...(stmtCharts[id]||{}), donut, bar };
   const leg = document.getElementById('legend-'+id);
   leg.innerHTML = '';
   cats.forEach(c => {
@@ -2020,6 +2054,7 @@ function updateMonthView(stmtId, card) {
   document.getElementById('kpi-excl-'+stmtId).textContent     = fmtL(eTotal);
   document.getElementById('kpi-excl-sub-'+stmtId).textContent = `${eCount} txn${eCount!==1?'s':''} · removed from spend`;
   renderCharts(stmt, cats, netSpend);
+  renderSparkline(stmtId);
   renderBudget(stmtId);
   renderGroceryBudget(stmtId);
   renderMoM(stmtId);
@@ -2082,7 +2117,7 @@ function buildMonthView(stmt) {
 
     <!-- KPIs -->
     <div class="kpi-row">
-      <div class="kpi red"><div class="label">Net Spend</div><div class="value" id="kpi-spend-${stmt.id}">${fmtL(netSpend)}</div><div class="sub">After refunds &amp; credits</div></div>
+      <div class="kpi red"><div class="label">Net Spend</div><div class="value" id="kpi-spend-${stmt.id}">${fmtL(netSpend)}</div><div class="sub">After refunds &amp; credits</div><canvas class="kpi-spark" id="spark-spend-${stmt.id}" width="72" height="30"></canvas></div>
       <div class="kpi yellow"><div class="label">Top Category</div><div class="value" id="kpi-topval-${stmt.id}">${fmt(topCat.amount)}</div><div class="sub" id="kpi-topsub-${stmt.id}">${topCat.name} (${((topCat.amount/netSpend)*100).toFixed(0)}%)</div></div>
       <div class="kpi teal"><div class="label">Reimbursable</div><div class="value" id="kpi-reimb-${stmt.id}">${fmtL(getReimbTotal(stmt.id))}</div><div class="sub" id="kpi-reimb-sub-${stmt.id}">${getReimbCount(stmt.id)} txns · you'll get back</div></div>
       <div class="kpi red"><div class="label">Excluded</div><div class="value" id="kpi-excl-${stmt.id}" style="font-size:18px">${fmtL(getExcludeTotal(stmt.id))}</div><div class="sub" id="kpi-excl-sub-${stmt.id}">${getExcludeCount(stmt.id)} txn${getExcludeCount(stmt.id)!==1?'s':''} · removed from spend</div></div>
@@ -2135,7 +2170,7 @@ function buildMonthView(stmt) {
   `;
 
   document.querySelector('.container').appendChild(div);
-  requestAnimationFrame(() => renderCharts(stmt, cats, netSpend));
+  requestAnimationFrame(() => { renderCharts(stmt, cats, netSpend); renderSparkline(stmt.id); });
   buildFilters(stmt);
   renderBudget(stmt.id);
   renderGroceryBudget(stmt.id);

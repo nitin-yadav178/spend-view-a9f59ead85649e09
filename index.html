@@ -1456,6 +1456,8 @@ const STATEMENTS = [
       { date:"30 Oct", merchant:"UBER INDIA", cat:"Transport", amount:208.42, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
       { date:"31 Oct", merchant:"HSBCIN TWP FLIGHT", cat:"Travel", amount:23211.82, credit:false, card:"HSBC TravelOne", source:"email" },
       { date:"31 Oct", merchant:"HSBC credit adjustment", cat:"Subscriptions & Misc", amount:5.0, credit:true, card:"HSBC TravelOne", source:"email" },
+          { date:"28 Oct", merchant:"UBER INDIA SYSTEMS", cat:"Transport", amount:279.91, credit:false, card:"HSBC TravelOne", source:"email" },
+          { date:"27 Oct", merchant:"RSP*BLINK COMMERCE PVT", cat:"Shopping", amount:1801.0, credit:false, card:"HSBC TravelOne", note:"[AUTO-synced, category needs review]", source:"email" },
     ]
   },
   {
@@ -2635,7 +2637,9 @@ STATEMENTS.forEach(buildMonthView);
 showView(STATEMENTS.length ? STATEMENTS[STATEMENTS.length-1].id : 'trends');
 
 pullCloudState().then(() => {
-  STATEMENTS.forEach(s => updateMonthView(s.id, activeTopCard[s.id] || 'All'));
+  STATEMENTS.forEach(s => updateMonthView(s.id, activeTopCard[s.id      { date:"2 Nov", merchant:"UBER INDIA SYSTEMS", cat:"Transport", amount:269.22, credit:false, card:"HSBC TravelOne", source:"email" },
+          { date:"1 Nov", merchant:"AMAZON SELLER SERVICES", cat:"Shopping", amount:1948.0, credit:false, card:"HSBC TravelOne", source:"email" },
+    ] || 'All'));
   _allCategoriesCache = null;
   if (activeView === 'reimb') renderReimbView();
 });

@@ -1466,6 +1466,8 @@ const STATEMENTS = [
       { date:"1 Nov", merchant:"MAXIMIZE PAY SOLUTIONS", cat:"Shopping", amount:2000.0, credit:false, card:"HSBC TravelOne", origDate:"31 Oct", note:"Payment for Lenskart", source:"email" },
       { date:"1 Nov", merchant:"HSBCIN TWP FLIGHT", cat:"Travel", amount:23211.82, credit:false, card:"HSBC TravelOne", origDate:"31 Oct", source:"email" },
       { date:"1 Nov", merchant:"HSBC credit adjustment", cat:"Subscriptions & Misc", amount:5.0, credit:true, card:"HSBC TravelOne", origDate:"31 Oct", source:"email" },
+      { date:"1 Nov", merchant:"AMAZON SELLER SERVICES", cat:"Shopping", amount:1948.0, credit:false, card:"HSBC TravelOne", source:"email" },
+      { date:"2 Nov", merchant:"UBER INDIA SYSTEMS", cat:"Transport", amount:269.22, credit:false, card:"HSBC TravelOne", source:"email" },
     ]
   }
 ];
@@ -2637,9 +2639,7 @@ STATEMENTS.forEach(buildMonthView);
 showView(STATEMENTS.length ? STATEMENTS[STATEMENTS.length-1].id : 'trends');
 
 pullCloudState().then(() => {
-  STATEMENTS.forEach(s => updateMonthView(s.id, activeTopCard[s.id      { date:"2 Nov", merchant:"UBER INDIA SYSTEMS", cat:"Transport", amount:269.22, credit:false, card:"HSBC TravelOne", source:"email" },
-          { date:"1 Nov", merchant:"AMAZON SELLER SERVICES", cat:"Shopping", amount:1948.0, credit:false, card:"HSBC TravelOne", source:"email" },
-    ] || 'All'));
+  STATEMENTS.forEach(s => updateMonthView(s.id, activeTopCard[s.id] || 'All'));
   _allCategoriesCache = null;
   if (activeView === 'reimb') renderReimbView();
 });

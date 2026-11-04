@@ -165,6 +165,13 @@ tr.exclude-row td:nth-child(2) { text-decoration:line-through; }
 .budget-bar { background:var(--border); border-radius:5px; height:8px; overflow:hidden; }
 .budget-fill { width:100%; height:8px; border-radius:5px; transform-origin:left; transform:scaleX(0); transition:transform .4s; }
 .budget-empty { font-size:12px; color:var(--muted); }
+.budget-bucket-row { margin-bottom:14px; }
+.budget-bucket-row:last-child { margin-bottom:0; }
+.budget-bucket-top { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:6px; }
+.budget-bucket-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.budget-bucket-name { font-size:13px; font-weight:600; color:var(--ink-strong); width:62px; flex-shrink:0; }
+.budget-bucket-input { width:92px; padding:4px 8px; font-size:13px; }
+.budget-bucket-spent { font-size:12px; color:var(--muted-2); margin-left:auto; }
 
 /* ── Recurring + MoM cards ── */
 .card .card-sub { font-size:11px; color:var(--muted); font-weight:400; text-transform:none; letter-spacing:0; margin-top:-12px; margin-bottom:16px; }
@@ -1814,30 +1821,70 @@ function setCatOverride(stmtId, key, newCat) {
 loadCatOverrides();
 
 // ═══════════════════════════════════════════════
-//  BUDGET — overall monthly spend cap
+//  BUDGET — per-month, 6-bucket targets (grocery/dining/uber/petrol/travel/others)
+//  Mirrors the bucket logic used by the weekly budget email cron
+//  (~/profiles/plutus/scripts/weekly_budget_email.py CAT_TO_BUDGET/bucket_for)
+//  so the dashboard widget and the Monday email always agree.
 // ═══════════════════════════════════════════════
-let budgetData = { grocery: 7000 };
+const BUDGET_BUCKETS = ['grocery','dining','uber','petrol','travel','others'];
+const BUDGET_LABELS  = { grocery:'Grocery', dining:'Dining', uber:'Uber', petrol:'Petrol', travel:'Travel', others:'Others' };
+const BUDGET_COLORS  = { grocery:'#06d6a0', dining:'#ef476f', uber:'#4ea8de', petrol:'#ffa62b', travel:'#5b61a8', others:'#a685e2' };
+const CAT_TO_BUDGET_BUCKET = {
+  'Grocery + QC': 'grocery',
+  'Food & Dining': 'dining',
+  'Health': 'others',
+  'Shopping': 'others',
+  'Home Services': 'others',
+  'Home & Furniture': 'others',
+  'Subscriptions & Misc': 'others',
+  'Subscriptions': 'others',
+  'Travel': 'travel',
+  'Taxes': 'others',
+};
+function budgetBucketFor(cat, merchant) {
+  const merch = (merchant||'').toUpperCase();
+  if (cat === 'Transport' && merch.includes('UBER')) return 'uber';
+  if (cat === 'Transport' && ['PETROL','FUEL','INDIAN OIL','HPCL','BPCL','SHELL'].some(k => merch.includes(k))) return 'petrol';
+  if (cat === 'Transport') return 'others';
+  return CAT_TO_BUDGET_BUCKET[cat] || 'others';
+}
+
+let budgetData = { monthly: {} };
 function loadBudget() {
   try {
     const d = JSON.parse(localStorage.getItem('budget_v1')||'{}');
-    budgetData = { grocery: 7000, ...d };
-    if (!budgetData.grocery && budgetData.grocery !== 0) budgetData.grocery = 7000;
-  } catch(e) { budgetData = { grocery: 7000 }; }
+    budgetData = { monthly: {}, ...d };
+    if (!budgetData.monthly) budgetData.monthly = {};
+  } catch(e) { budgetData = { monthly: {} }; }
 }
 function saveBudget() { localStorage.setItem('budget_v1', JSON.stringify(budgetData)); }
-function setBudget(val) {
+function getMonthBudget(stmtId) { return budgetData.monthly[stmtId] || {}; }
+function setBucketBudget(stmtId, bucket, val) {
   const n = Math.max(0, Math.round(Number(val) || 0));
-  budgetData.cap = n;
+  if (!budgetData.monthly[stmtId]) budgetData.monthly[stmtId] = {};
+  budgetData.monthly[stmtId][bucket] = n;
   saveBudget();
   pushCloudState();
-  STATEMENTS.forEach(s => renderBudget(s.id));
+  renderBudgetBuckets(stmtId);
 }
-function setGroceryBudget(val) {
-  const n = Math.max(0, Math.round(Number(val) || 0));
-  budgetData.grocery = n;
-  saveBudget();
-  pushCloudState();
-  STATEMENTS.forEach(s => renderGroceryBudget(s.id));
+// Bucketed spend for a month, using the same effCat/effExcl/effReimb overrides
+// (cloud-sync catOverride/exclude/reimburse) the KPIs/charts already apply —
+// so this widget always matches Net Spend, never the raw static HTML fields.
+function getBucketSpend(stmt) {
+  const totals = {}; BUDGET_BUCKETS.forEach(b => totals[b] = 0);
+  const { txns } = getStats(stmt, 'All'); // already excludes effExcl + effReimb, non-credit handled below
+  txns.filter(t => !t.credit).forEach(t => {
+    const cat = effCat(t, stmt.id);
+    const b = budgetBucketFor(cat, t.merchant);
+    totals[b] += t.amount;
+  });
+  // credits reduce their bucket too (refunds against a category)
+  txns.filter(t => t.credit).forEach(t => {
+    const cat = effCat(t, stmt.id);
+    const b = budgetBucketFor(cat, t.merchant);
+    totals[b] -= t.amount;
+  });
+  return totals;
 }
 loadBudget();
 
@@ -1931,70 +1978,41 @@ function exportCSV(stmtId) {
 // ═══════════════════════════════════════════════
 //  RENDER — budget strip + MoM card
 // ═══════════════════════════════════════════════
-function renderBudget(stmtId) {
-  const wrap = document.getElementById('budget-'+stmtId);
+function renderBudgetBuckets(stmtId) {
+  const wrap = document.getElementById('budget-buckets-'+stmtId);
   if (!wrap) return;
   const stmt = STATEMENTS.find(s => s.id === stmtId);
-  const spent = getStats(stmt, 'All').netSpend;
-  const cap = budgetData.cap || 0;
-  const inputEl = document.getElementById('budget-input-'+stmtId);
-  if (inputEl && document.activeElement !== inputEl) inputEl.value = cap || '';
+  const spend = getBucketSpend(stmt);
+  const targets = getMonthBudget(stmtId);
 
-  const bar = document.getElementById('budget-bar-'+stmtId);
-  const spentEl = document.getElementById('budget-spent-'+stmtId);
-  const chip = document.getElementById('budget-chip-'+stmtId);
-
-  if (!cap) {
-    spentEl.innerHTML = `Spent this month <b>${fmtL(spent)}</b>`;
-    bar.style.transform = 'scaleX(0)';
-    chip.className = 'budget-chip';
-    chip.textContent = 'Set a cap to track';
-    return;
-  }
-  const pct = (spent / cap) * 100;
-  spentEl.innerHTML = `Spent this month <b>${fmtL(spent)}</b> of ${fmtL(cap)} (${pct.toFixed(0)}%)`;
-  bar.style.transform = 'scaleX(' + (Math.min(pct, 100) / 100) + ')';
-  bar.style.background = pct > 100 ? '#e63946' : (pct >= 80 ? '#f4a261' : '#2ec4b6');
-  if (spent > cap) { chip.className = 'budget-chip over'; chip.textContent = '⚠ Over by ' + fmt(spent - cap); }
-  else { chip.className = 'budget-chip ok'; chip.textContent = '✓ ' + fmt(cap - spent) + ' left'; }
-}
-
-function renderGroceryBudget(stmtId) {
-  const wrap = document.getElementById('grocery-budget-'+stmtId);
-  if (!wrap) return;
-  const rows = getFilteredTxns(stmtId);
-  const grocerySpent = rows.filter(t => {
-    if (t.credit || effCat(t, stmtId) !== 'Grocery + QC') return false;
-    if (stmtId === 'oct-2026') {
-      const m = String(t.date).match(/^(\d+)/);
-      const day = m ? parseInt(m[1], 10) : 0;
-      if (day < 17) return false;
-    }
-    return true;
-  }).reduce((s,t) => s + t.amount, 0);
-  const cap = budgetData.grocery || 7000;
-  const inputEl = document.getElementById('grocery-input-'+stmtId);
-  if (inputEl && document.activeElement !== inputEl) inputEl.value = cap || '';
-
-  const bar = document.getElementById('grocery-bar-'+stmtId);
-  const spentEl = document.getElementById('grocery-spent-'+stmtId);
-  const chip = document.getElementById('grocery-chip-'+stmtId);
-
-  const subLabel = stmtId === 'oct-2026' ? ' (17 Oct onwards)' : '';
-
-  if (!cap) {
-    spentEl.innerHTML = `Grocery spent${subLabel} <b>${fmtL(grocerySpent)}</b>`;
-    bar.style.transform = 'scaleX(0)';
-    chip.className = 'budget-chip';
-    chip.textContent = 'Set a cap to track';
-    return;
-  }
-  const pct = (grocerySpent / cap) * 100;
-  spentEl.innerHTML = `Grocery spent${subLabel} <b>${fmtL(grocerySpent)}</b> of ${fmtL(cap)} (${pct.toFixed(0)}%)`;
-  bar.style.transform = 'scaleX(' + (Math.min(pct, 100) / 100) + ')';
-  bar.style.background = pct > 100 ? '#e63946' : (pct >= 80 ? '#f4a261' : '#2ec4b6');
-  if (grocerySpent > cap) { chip.className = 'budget-chip over'; chip.textContent = '⚠ Over by ' + fmt(grocerySpent - cap); }
-  else { chip.className = 'budget-chip ok'; chip.textContent = '✓ ' + fmt(cap - grocerySpent) + ' left'; }
+  let html = '';
+  BUDGET_BUCKETS.forEach(b => {
+    const spent = spend[b] || 0;
+    const cap = targets[b] || 0;
+    const color = BUDGET_COLORS[b];
+    const pct = cap ? (spent / cap) * 100 : 0;
+    const barColor = !cap ? '#555' : (pct > 100 ? '#e63946' : (pct >= 80 ? '#f4a261' : color));
+    const inputId = `budget-input-${stmtId}-${b}`;
+    const chip = !cap
+      ? `<span class="budget-chip">no target</span>`
+      : (spent > cap
+          ? `<span class="budget-chip over">⚠ over by ${fmt(spent - cap)}</span>`
+          : `<span class="budget-chip ok">✓ ${fmt(cap - spent)} left</span>`);
+    html += `
+      <div class="budget-bucket-row">
+        <div class="budget-bucket-top">
+          <span class="budget-bucket-dot" style="background:${color}"></span>
+          <span class="budget-bucket-name">${BUDGET_LABELS[b]}</span>
+          <input class="budget-input budget-bucket-input" id="${inputId}" type="number" min="0" step="500"
+                 value="${cap || ''}" placeholder="target ₹"
+                 onchange="setBucketBudget('${stmtId}','${b}',this.value)">
+          <span class="budget-bucket-spent">${fmtL(spent)}${cap ? ' / ' + fmtL(cap) : ''}</span>
+          ${chip}
+        </div>
+        <div class="budget-bar"><div class="budget-fill" style="transform:scaleX(${cap ? Math.min(pct,100)/100 : Math.min(spent>0?10:0,100)/100}); background:${barColor}"></div></div>
+      </div>`;
+  });
+  wrap.innerHTML = html;
 }
 
 function renderRecurring(stmtId) {
@@ -2103,8 +2121,7 @@ function updateMonthView(stmtId, card) {
   document.getElementById('kpi-excl-sub-'+stmtId).textContent = `${eCount} txn${eCount!==1?'s':''} · removed from spend`;
   renderCharts(stmt, cats, netSpend);
   renderSparkline(stmtId);
-  renderBudget(stmtId);
-  renderGroceryBudget(stmtId);
+  renderBudgetBuckets(stmtId);
   renderMoM(stmtId);
   renderTxns(stmtId);
 }
@@ -2130,37 +2147,11 @@ function buildMonthView(stmt) {
       ${cardOptions.map(c => `<button class="card-filter-btn${c==='All'?' active':''}" onclick="selectCard('${stmt.id}','${c}',this)">${c==='All'?'All Cards':c}</button>`).join('')}
     </div>
 
-    <!-- Budget strip -->
-    <div class="budget-strip" id="budget-${stmt.id}">
-      <div class="budget-top">
-        <div class="budget-left">
-          <span class="budget-label">Monthly Budget ₹</span>
-          <input class="budget-input" id="budget-input-${stmt.id}" type="number" min="0" step="1000" placeholder="set cap"
-                 onchange="setBudget(this.value)">
-        </div>
-        <div class="budget-right">
-          <span class="budget-spent" id="budget-spent-${stmt.id}"></span>
-          <span class="budget-mom" id="budget-mom-${stmt.id}"></span>
-          <span class="budget-chip" id="budget-chip-${stmt.id}"></span>
-        </div>
-      </div>
-      <div class="budget-bar"><div class="budget-fill" id="budget-bar-${stmt.id}" style="transform:scaleX(0)"></div></div>
-    </div>
-
-    <!-- Grocery Budget strip -->
-    <div class="budget-strip" id="grocery-budget-${stmt.id}">
-      <div class="budget-top">
-        <div class="budget-left">
-          <span class="budget-label">Grocery Budget ₹</span>
-          <input class="budget-input" id="grocery-input-${stmt.id}" type="number" min="0" step="500" placeholder="set cap"
-                 onchange="setGroceryBudget(this.value)">
-        </div>
-        <div class="budget-right">
-          <span class="budget-spent" id="grocery-spent-${stmt.id}"></span>
-          <span class="budget-chip" id="grocery-chip-${stmt.id}"></span>
-        </div>
-      </div>
-      <div class="budget-bar"><div class="budget-fill" id="grocery-bar-${stmt.id}" style="transform:scaleX(0)"></div></div>
+    <!-- Budget strip — per-month 6-bucket targets -->
+    <div class="card" id="budget-wrap-${stmt.id}">
+      <h2>Monthly Budget</h2>
+      <div class="card-sub">Target vs spend this month, by bucket</div>
+      <div id="budget-buckets-${stmt.id}"></div>
     </div>
 
     <!-- KPIs -->
@@ -2220,8 +2211,7 @@ function buildMonthView(stmt) {
   document.querySelector('.container').appendChild(div);
   requestAnimationFrame(() => { renderCharts(stmt, cats, netSpend); renderSparkline(stmt.id); });
   buildFilters(stmt);
-  renderBudget(stmt.id);
-  renderGroceryBudget(stmt.id);
+  renderBudgetBuckets(stmt.id);
   renderRecurring(stmt.id);
   renderMoM(stmt.id);
   renderTxns(stmt.id);

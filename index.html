@@ -1872,14 +1872,19 @@ function setBucketBudget(stmtId, bucket, val) {
 // so this widget always matches Net Spend, never the raw static HTML fields.
 function getBucketSpend(stmt) {
   const totals = {}; BUDGET_BUCKETS.forEach(b => totals[b] = 0);
-  const { txns } = getStats(stmt, 'All'); // already excludes effExcl + effReimb, non-credit handled below
-  txns.filter(t => !t.credit).forEach(t => {
+  // getStats().txns only strips effExcl — reimbursable txns are still in there
+  // (they're only stripped when netSpend/cats are computed). Match that same
+  // spendTxns filter here too, otherwise reimbursable rows inflate the bucket
+  // beyond what Net Spend / the category table show.
+  const { txns } = getStats(stmt, 'All');
+  const spendTxns = txns.filter(t => !effReimb(t, stmt.id));
+  spendTxns.filter(t => !t.credit).forEach(t => {
     const cat = effCat(t, stmt.id);
     const b = budgetBucketFor(cat, t.merchant);
     totals[b] += t.amount;
   });
   // credits reduce their bucket too (refunds against a category)
-  txns.filter(t => t.credit).forEach(t => {
+  spendTxns.filter(t => t.credit).forEach(t => {
     const cat = effCat(t, stmt.id);
     const b = budgetBucketFor(cat, t.merchant);
     totals[b] -= t.amount;

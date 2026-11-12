@@ -146,6 +146,10 @@ tr.exclude-row td:nth-child(2) { text-decoration:line-through; }
 .note-input:focus { border-color:var(--accent); }
 .note-input:not(:placeholder-shown) { border-color:#3a5a4a; background:#1a2420; }
 
+/* ── Alert banner ── */
+.alert-banner { background:var(--danger-bg); border:1px solid var(--danger); color:#ffb3ba; padding:12px 18px; border-radius:10px; font-size:13px; margin-bottom:20px; }
+.alert-banner a { color:#fff; text-decoration:underline; }
+
 /* ── Budget strip ── */
 .budget-strip { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 22px; margin-bottom:20px; }
 .budget-top { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:12px; }
@@ -2100,6 +2104,16 @@ function renderMoM(stmtId) {
       momLine.innerHTML = `<span class="${dir}">${arr} ${Math.abs(m.pct).toFixed(0)}%</span> vs ${m.prevLabel}`;
     }
   }
+  const kpiMom = document.getElementById('kpi-mom-'+stmtId);
+  if (kpiMom) {
+    if (!m) kpiMom.innerHTML = '';
+    else {
+      const dir = m.totalDelta >= 0 ? 'up' : 'down';
+      const arr = m.totalDelta >= 0 ? '▲' : '▼';
+      const col = m.totalDelta >= 0 ? 'var(--danger)' : 'var(--success)';
+      kpiMom.innerHTML = `<span style="color:${col};font-weight:600">${arr} ${Math.abs(m.pct).toFixed(0)}%</span> vs ${m.prevLabel}`;
+    }
+  }
   const body = document.getElementById('mom-body-'+stmtId);
   if (!body) return;
   if (!m) { body.innerHTML = `<div class="placeholder-msg">First month — no comparison yet.</div>`; return; }
@@ -2204,19 +2218,22 @@ function buildMonthView(stmt) {
       ${cardOptions.map(c => `<button class="card-filter-btn${c==='All'?' active':''}" onclick="selectCard('${stmt.id}','${c}',this)">${c==='All'?'All Cards':c}</button>`).join('')}
     </div>
 
+    <!-- Alerts -->
+    <div id="alert-row-${stmt.id}"></div>
+
+    <!-- KPIs -->
+    <div class="kpi-row">
+      <div class="kpi red"><div class="label">Net Spend</div><div class="value" id="kpi-spend-${stmt.id}">${fmtL(netSpend)}</div><div class="sub">After refunds &amp; credits · <span id="kpi-mom-${stmt.id}"></span></div><canvas class="kpi-spark" id="spark-spend-${stmt.id}" width="72" height="30"></canvas></div>
+      <div class="kpi yellow"><div class="label">Top Category</div><div class="value" id="kpi-topval-${stmt.id}">${fmt(topCat.amount)}</div><div class="sub" id="kpi-topsub-${stmt.id}">${topCat.name} (${((topCat.amount/netSpend)*100).toFixed(0)}%)</div></div>
+      <div class="kpi teal"><div class="label">Reimbursable</div><div class="value" id="kpi-reimb-${stmt.id}">${fmtL(getReimbTotal(stmt.id))}</div><div class="sub" id="kpi-reimb-sub-${stmt.id}">${getReimbCount(stmt.id)} txns · you'll get back</div></div>
+      <div class="kpi red"><div class="label">Excluded</div><div class="value" id="kpi-excl-${stmt.id}" style="font-size:18px">${fmtL(getExcludeTotal(stmt.id))}</div><div class="sub" id="kpi-excl-sub-${stmt.id}">${getExcludeCount(stmt.id)} txn${getExcludeCount(stmt.id)!==1?'s':''} · removed from spend</div></div>
+    </div>
+
     <!-- Budget strip — per-month 6-bucket targets -->
     <div class="card" id="budget-wrap-${stmt.id}">
       <h2>Monthly Budget</h2>
       <div class="card-sub">Target vs spend this month, by bucket</div>
       <div id="budget-buckets-${stmt.id}"></div>
-    </div>
-
-    <!-- KPIs -->
-    <div class="kpi-row">
-      <div class="kpi red"><div class="label">Net Spend</div><div class="value" id="kpi-spend-${stmt.id}">${fmtL(netSpend)}</div><div class="sub">After refunds &amp; credits</div><canvas class="kpi-spark" id="spark-spend-${stmt.id}" width="72" height="30"></canvas></div>
-      <div class="kpi yellow"><div class="label">Top Category</div><div class="value" id="kpi-topval-${stmt.id}">${fmt(topCat.amount)}</div><div class="sub" id="kpi-topsub-${stmt.id}">${topCat.name} (${((topCat.amount/netSpend)*100).toFixed(0)}%)</div></div>
-      <div class="kpi teal"><div class="label">Reimbursable</div><div class="value" id="kpi-reimb-${stmt.id}">${fmtL(getReimbTotal(stmt.id))}</div><div class="sub" id="kpi-reimb-sub-${stmt.id}">${getReimbCount(stmt.id)} txns · you'll get back</div></div>
-      <div class="kpi red"><div class="label">Excluded</div><div class="value" id="kpi-excl-${stmt.id}" style="font-size:18px">${fmtL(getExcludeTotal(stmt.id))}</div><div class="sub" id="kpi-excl-sub-${stmt.id}">${getExcludeCount(stmt.id)} txn${getExcludeCount(stmt.id)!==1?'s':''} · removed from spend</div></div>
     </div>
 
     <!-- Charts -->
@@ -2268,10 +2285,20 @@ function buildMonthView(stmt) {
   document.querySelector('.container').appendChild(div);
   requestAnimationFrame(() => { renderCharts(stmt, cats, netSpend); renderSparkline(stmt.id); });
   buildFilters(stmt);
+  renderAlerts(stmt.id);
   renderBudgetBuckets(stmt.id);
   renderRecurring(stmt.id);
   renderMoM(stmt.id);
   renderTxns(stmt.id);
+}
+
+function renderAlerts(stmtId) {
+  const wrap = document.getElementById('alert-row-'+stmtId);
+  if (!wrap) return;
+  const stmt = STATEMENTS.find(s => s.id === stmtId);
+  const needsReview = (stmt.txns||[]).filter(t => (t.note||'').includes('category needs review'));
+  if (!needsReview.length) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = `<div class="alert-banner">⚠ ${needsReview.length} txn${needsReview.length!==1?'s':''} auto-synced from email need category review — <a href="#" onclick="document.getElementById('search-${stmtId}').value='needs review';renderTxns('${stmtId}');return false;">filter them</a></div>`;
 }
 
 function selectCard(stmtId, card, btn) {

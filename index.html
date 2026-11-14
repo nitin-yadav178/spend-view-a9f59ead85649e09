@@ -1522,7 +1522,7 @@ const STATEMENTS = [
           { date:"7 Nov", merchant:"Shoppers Stop", cat:"Shopping", amount:3834.15, credit:false, card:"HSBC TravelOne", source:"email" },
           { date:"7 Nov", merchant:"Westside", cat:"Shopping", amount:6605, credit:false, card:"HSBC TravelOne", source:"email" },
           { date:"12 Nov", merchant:"AMAZON PAY INDIA PRIVA", cat:"Shopping", amount:204.0, credit:false, card:"HSBC TravelOne", source:"email" },
-          { date:"10 Nov", merchant:"RAZ*KIERAYA FURNISHING", cat:"Shopping", amount:7069.38, credit:false, card:"HSBC TravelOne", note:"[AUTO-synced, category needs review]", source:"email" },
+          { date:"10 Nov", merchant:"RAZ*KIERAYA FURNISHING", cat:"Shopping", amount:7069.38, credit:false, card:"HSBC TravelOne", source:"email" },
           { date:"10 Nov", merchant:"AMAZON SELLER SERVICES", cat:"Shopping", amount:912.0, credit:false, card:"HSBC TravelOne", source:"email" },
           { date:"9 Nov", merchant:"AMAZON PAY INDIA PRIVA", cat:"Shopping", amount:384.0, credit:false, card:"HSBC TravelOne", source:"email" },
           { date:"9 Nov", merchant:"URBANCLAP TECHNOLOGIES", cat:"Home Services", amount:538.0, credit:false, card:"HSBC TravelOne", source:"email" },
@@ -1537,7 +1537,7 @@ const STATEMENTS = [
           { date:"11 Nov", merchant:"UBER INDIA (reversal)", cat:"Transport", amount:388.35, credit:true, card:"Axis Atlas (Meenakshi)", source:"email" },
           { date:"11 Nov", merchant:"Sushilkumar", cat:"Shopping", amount:250.0, credit:false, card:"Axis Neo/Flipkart", note:"[AUTO-synced, category needs review]", source:"email" },
           { date:"10 Nov", merchant:"UBER INDIA", cat:"Transport", amount:321.86, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
-          { date:"9 Nov", merchant:"GOOGLECLOUD", cat:"Shopping", amount:500.0, credit:false, card:"Axis Atlas", note:"[AUTO-synced, category needs review]", source:"email" },
+          { date:"9 Nov", merchant:"GOOGLECLOUD", cat:"Shopping", amount:500.0, credit:false, card:"Axis Atlas", source:"email" },
           { date:"9 Nov", merchant:"UBER INDIA", cat:"Transport", amount:383.89, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
           { date:"9 Nov", merchant:"ZEPTO MARKE", cat:"Grocery + QC", amount:605.0, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
           { date:"9 Nov", merchant:"BLINKIT", cat:"Grocery + QC", amount:432.0, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
@@ -1549,11 +1549,11 @@ const STATEMENTS = [
           { date:"6 Nov", merchant:"UBER INDIA", cat:"Transport", amount:365.18, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
           { date:"6 Nov", merchant:"ZEPTO MARKE", cat:"Grocery + QC", amount:220.0, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
           { date:"6 Nov", merchant:"ZEPTO MARKE", cat:"Grocery + QC", amount:545.0, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
-          { date:"5 Nov", merchant:"TATA MOTORS", cat:"Shopping", amount:2996.0, credit:false, card:"Axis Atlas", note:"[AUTO-synced, category needs review]", source:"email" },
+          { date:"5 Nov", merchant:"TATA MOTORS", cat:"Shopping", amount:2996.0, credit:false, card:"Axis Atlas", source:"email" },
           { date:"5 Nov", merchant:"Swiggy", cat:"Food & Dining", amount:709.0, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
           { date:"5 Nov", merchant:"UBER INDIA", cat:"Transport", amount:633.31, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
           { date:"5 Nov", merchant:"UBER INDIA", cat:"Transport", amount:788.37, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
-          { date:"4 Nov", merchant:"BREWCRAFTS", cat:"Shopping", amount:600.0, credit:false, card:"Axis Atlas", note:"[AUTO-synced, category needs review]", source:"email" },
+          { date:"4 Nov", merchant:"BREWCRAFTS", cat:"Shopping", amount:600.0, credit:false, card:"Axis Atlas", source:"email" },
           { date:"4 Nov", merchant:"UBER INDIA", cat:"Transport", amount:254.68, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
           { date:"4 Nov", merchant:"UBER INDIA (reversal)", cat:"Transport", amount:254.68, credit:true, card:"Axis Atlas (Meenakshi)", source:"email" },
           { date:"4 Nov", merchant:"YOUTUBE CYB", cat:"Subscriptions & Misc", amount:299.0, credit:false, card:"Axis Atlas", source:"email" },
@@ -1564,7 +1564,7 @@ const STATEMENTS = [
           { date:"13 Nov", merchant:"CAS*Swiggy", cat:"Food & Dining", amount:433.0, credit:false, card:"Axis Atlas", source:"email" },
           { date:"13 Nov", merchant:"ZEPTO MARKE", cat:"Grocery + QC", amount:240.45, credit:false, card:"Axis Atlas", source:"email" },
           { date:"13 Nov", merchant:"CAS*Swiggy", cat:"Food & Dining", amount:916.0, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
-          { date:"13 Nov", merchant:"Benneco", cat:"Shopping", amount:610.0, credit:false, card:"Axis Neo/Flipkart", note:"[AUTO-synced, category needs review]", source:"email" },
+          { date:"13 Nov", merchant:"Benneco", cat:"Shopping", amount:610.0, credit:false, card:"Axis Neo/Flipkart", source:"email" },
           { date:"13 Nov", merchant:"AMAZON PAY INDIA PRIVA", cat:"Shopping", amount:5000.0, credit:false, card:"HSBC TravelOne", source:"email" },
           { date:"13 Nov", merchant:"UBER INDIA", cat:"Transport", amount:320.92, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
           { date:"12 Nov", merchant:"Snabbit", cat:"Home Services", amount:105.65, credit:false, card:"Axis Neo/Flipkart", source:"email" },
@@ -1906,6 +1906,16 @@ function allCategories() {
 function setCatOverride(stmtId, key, newCat) {
   catOverrides[key] = newCat;
   saveCatOverrides();
+  // Re-categorizing an AUTO-synced row means Nitin has reviewed it — clear the
+  // "needs review" note so it doesn't sit there stale forever. Direct-assign
+  // '' (not via setNote, which deletes falsy values) so effNote's
+  // notesData[k] !== undefined check picks it up instead of falling back to
+  // the static t.note field.
+  const t = _txnRegistry[key];
+  if (t && effNote(t, stmtId) === '[AUTO-synced, category needs review]') {
+    notesData[key] = '';
+    saveNotes();
+  }
   pushCloudState();
   updateMonthView(stmtId, activeTopCard[stmtId] || 'All');
 }

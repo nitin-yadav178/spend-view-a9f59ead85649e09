@@ -251,6 +251,7 @@ tr.reimb-full-row td { opacity:0.55; }
   </div>
   <div style="font-size:12px;color:#8b8fa8;text-align:right">
     <div id="headerMeta"></div>
+    <button id="manualSaveBtn" onclick="manualSave()" style="margin-top:4px;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:inherit;cursor:pointer;font-size:12px;">💾 Save</button>
     <div id="cloud-sync-indicator" class="cloud-sync-indicator"></div>
   </div>
 </div>
@@ -1652,26 +1653,44 @@ function pullCloudState() {
     .catch(() => { /* offline or Worker unreachable — fall back to localStorage silently */ });
 }
 
+function pushCloudStateNow() {
+  setCloudSyncStatus('syncing');
+  const payload = JSON.stringify({
+    reimburse: reimburseData,
+    exclude: excludeData,
+    notes: notesData,
+    catOverrides: catOverrides,
+    budget: budgetData,
+    reimbTrack: reimbTrackData,
+  });
+  return fetch(CLOUD_SYNC_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Auth-Token': CLOUD_SYNC_TOKEN },
+    body: payload,
+  })
+    .then(r => { setCloudSyncStatus(r.ok ? 'synced' : 'error'); return r.ok; })
+    .catch(() => { setCloudSyncStatus('error'); return false; });
+}
+
 function pushCloudState() {
   setCloudSyncStatus('syncing');
   clearTimeout(_cloudSyncTimer);
-  _cloudSyncTimer = setTimeout(() => {
-    const payload = JSON.stringify({
-      reimburse: reimburseData,
-      exclude: excludeData,
-      notes: notesData,
-      catOverrides: catOverrides,
-      budget: budgetData,
-      reimbTrack: reimbTrackData,
-    });
-    fetch(CLOUD_SYNC_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Auth-Token': CLOUD_SYNC_TOKEN },
-      body: payload,
-    })
-      .then(r => setCloudSyncStatus(r.ok ? 'synced' : 'error'))
-      .catch(() => setCloudSyncStatus('error'));
-  }, 600);
+  _cloudSyncTimer = setTimeout(pushCloudStateNow, 600);
+}
+
+// Manual "Save" button: every toggle already auto-saves (debounced 600ms),
+// this just forces an immediate push + explicit confirmation for peace of mind.
+function manualSave() {
+  clearTimeout(_cloudSyncTimer);
+  const btn = document.getElementById('manualSaveBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Saving…'; }
+  pushCloudStateNow().then(ok => {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = ok ? '✅ Saved' : '⚠ Save failed';
+      setTimeout(() => { btn.textContent = '💾 Save'; }, 2000);
+    }
+  });
 }
 
 // ═══════════════════════════════════════════════

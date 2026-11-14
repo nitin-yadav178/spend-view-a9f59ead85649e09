@@ -231,6 +231,9 @@ tr.exclude-row td:nth-child(2) { text-decoration:line-through; }
 .cloud-sync-indicator.sync-syncing { color:#f4a261; }
 .cloud-sync-indicator.sync-ok { color:#2ec4b6; }
 .cloud-sync-indicator.sync-err { color:#e63946; }
+.sortable-th { cursor:pointer; user-select:none; }
+.sortable-th:hover { color:var(--ink-strong); }
+.sort-arrow { font-size:10px; }
 
 /* ── Reimbursements tracker tab ── */
 .reimb-table-wrap { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px; }
@@ -2307,7 +2310,12 @@ function buildMonthView(stmt) {
         </div>
       </div>
       <div class="filter-row" id="filters-${stmt.id}"></div>
-      <table class="txn"><thead><tr><th>Date</th><th>Merchant</th><th>Category</th><th style="text-align:right">Amount</th><th>Notes</th><th></th></tr></thead>
+      <table class="txn"><thead><tr>
+        <th class="sortable-th" id="th-date-${stmt.id}" onclick="toggleTxnSort('${stmt.id}','date')">Date<span class="sort-arrow"></span></th>
+        <th>Merchant</th><th>Category</th>
+        <th class="sortable-th" id="th-amount-${stmt.id}" style="text-align:right" onclick="toggleTxnSort('${stmt.id}','amount')">Amount<span class="sort-arrow"></span></th>
+        <th>Notes</th><th></th>
+      </tr></thead>
         <tbody id="tbody-${stmt.id}"></tbody>
       </table>
       <div class="no-results" id="nores-${stmt.id}" style="display:none">No transactions found.</div>
@@ -2344,6 +2352,33 @@ function selectCard(stmtId, card, btn) {
 //  TRANSACTIONS FILTER / RENDER
 // ═══════════════════════════════════════════════
 const activeFilters = {};
+const txnSortState = {}; // stmtId -> { key: 'date'|'amount', dir: 1|-1 } (dir 1=asc,-1=desc)
+const MONTH_IDX = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
+function parseTxnDate(dStr) {
+  // "D MMM" -> comparable number (month*31 + day); good enough within a single month tab
+  const [d, mon] = dStr.split(' ');
+  return (MONTH_IDX[mon] ?? 0) * 31 + parseInt(d, 10);
+}
+function toggleTxnSort(stmtId, key) {
+  const cur = txnSortState[stmtId];
+  if (cur && cur.key === key) {
+    cur.dir = -cur.dir;
+  } else {
+    txnSortState[stmtId] = { key, dir: key === 'date' ? -1 : -1 };
+  }
+  renderTxns(stmtId);
+  updateSortArrows(stmtId);
+}
+function updateSortArrows(stmtId) {
+  const state = txnSortState[stmtId];
+  ['date','amount'].forEach(k => {
+    const th = document.getElementById(`th-${k}-${stmtId}`);
+    if (!th) return;
+    const arrow = th.querySelector('.sort-arrow');
+    if (!arrow) return;
+    arrow.textContent = (state && state.key === k) ? (state.dir === 1 ? ' ▲' : ' ▼') : '';
+  });
+}
 
 function buildFilters(stmt) {
   activeFilters[stmt.id] = 'All';
@@ -2408,7 +2443,16 @@ function getFilteredTxns(id) {
       if (search && !t.merchant.toLowerCase().includes(search) && !t.cat.toLowerCase().includes(search) && !effNote(t,id).toLowerCase().includes(search)) return false;
       return true;
     })
-    .sort((a,b) => b.amount - a.amount);
+    .sort((a,b) => {
+      const state = txnSortState[id];
+      if (state && state.key === 'date') {
+        return state.dir * (parseTxnDate(a.date) - parseTxnDate(b.date));
+      }
+      if (state && state.key === 'amount') {
+        return state.dir * (a.amount - b.amount);
+      }
+      return b.amount - a.amount; // default: amount desc
+    });
 }
 
 function renderTxns(id) {

@@ -1975,10 +1975,18 @@ const CAT_TO_BUDGET_BUCKET = {
   'Travel': 'travel',
   'Taxes': 'others',
 };
-function budgetBucketFor(cat, merchant) {
+function budgetBucketFor(cat, merchant, note) {
   const merch = (merchant||'').toUpperCase();
+  const noteU = (note||'').toUpperCase();
+  const fuelKw = ['PETROL','FUEL','INDIAN OIL','HPCL','BPCL','SHELL'];
+  // Note-based override: if Nitin tags ANY txn's note with petrol/fuel,
+  // route it to the Petrol bucket regardless of category/merchant — this
+  // is what lets a miscategorized or unrecognized merchant (e.g. "JOAQUIM
+  // PET") still count as petrol spend once annotated, without needing the
+  // merchant string itself to match a keyword.
+  if (fuelKw.some(k => noteU.includes(k))) return 'petrol';
   if (cat === 'Transport' && merch.includes('UBER')) return 'uber';
-  if (cat === 'Transport' && ['PETROL','FUEL','INDIAN OIL','HPCL','BPCL','SHELL'].some(k => merch.includes(k))) return 'petrol';
+  if (cat === 'Transport' && fuelKw.some(k => merch.includes(k))) return 'petrol';
   if (cat === 'Transport') return 'others';
   return CAT_TO_BUDGET_BUCKET[cat] || 'others';
 }
@@ -2014,13 +2022,13 @@ function getBucketSpend(stmt) {
   const spendTxns = txns.filter(t => !effReimb(t, stmt.id));
   spendTxns.filter(t => !t.credit).forEach(t => {
     const cat = effCat(t, stmt.id);
-    const b = budgetBucketFor(cat, t.merchant);
+    const b = budgetBucketFor(cat, t.merchant, effNote(t, stmt.id));
     totals[b] += t.amount;
   });
   // credits reduce their bucket too (refunds against a category)
   spendTxns.filter(t => t.credit).forEach(t => {
     const cat = effCat(t, stmt.id);
-    const b = budgetBucketFor(cat, t.merchant);
+    const b = budgetBucketFor(cat, t.merchant, effNote(t, stmt.id));
     totals[b] -= t.amount;
   });
   return totals;

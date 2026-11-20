@@ -2504,7 +2504,7 @@ function getFilteredTxns(id) {
     .sort((a,b) => {
       const state = txnSortState[id];
       if (state && state.key === 'date') {
-        return state.dir * (parseTxnDate(a.date) - parseTxnDate(b.date));
+        return state.dir * (parseTxnDate(a, stmt) - parseTxnDate(b, stmt));
       }
       if (state && state.key === 'amount') {
         return state.dir * (a.amount - b.amount);

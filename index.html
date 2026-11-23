@@ -1624,6 +1624,15 @@ const STATEMENTS = [
           { date:"20 Nov", merchant:"Blinkit", cat:"Grocery + QC", amount:1749.0, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
           { date:"20 Nov", merchant:"UBER INDIA", cat:"Transport", amount:309.95, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
           { date:"20 Nov", merchant:"UBER INDIA SYSTEMS", cat:"Transport", amount:321.98, credit:false, card:"HSBC TravelOne", source:"email" },
+          { date:"22 Nov", merchant:"ZEPTO MARKE", cat:"Grocery + QC", amount:308.4, credit:false, card:"Axis Atlas", source:"email" },
+          { date:"22 Nov", merchant:"PVR LIMITED", cat:"Shopping", amount:540.0, credit:false, card:"Axis Atlas (Meenakshi)", note:"[AUTO-synced, category needs review]", source:"email" },
+          { date:"22 Nov", merchant:"AMAZON PAY INDIA PRIVA", cat:"Shopping", amount:1654.0, credit:false, card:"HSBC TravelOne", source:"email" },
+          { date:"22 Nov", merchant:"PVR LIMITED", cat:"Shopping", amount:2150.0, credit:false, card:"Axis Atlas (Meenakshi)", note:"[AUTO-synced, category needs review]", source:"email" },
+          { date:"22 Nov", merchant:"AMAZON SELLER SERVICES", cat:"Shopping", amount:2377.0, credit:false, card:"HSBC TravelOne", source:"email" },
+          { date:"22 Nov", merchant:"Swiggy Inst", cat:"Food & Dining", amount:387.0, credit:false, card:"Axis Atlas", source:"email" },
+          { date:"22 Nov", merchant:"Adani Airpo", cat:"Shopping", amount:160.0, credit:false, card:"Axis Neo/Flipkart", note:"[AUTO-synced, category needs review]", source:"email" },
+          { date:"22 Nov", merchant:"AKSHATA SAG", cat:"Shopping", amount:1100.0, credit:false, card:"Axis Atlas (Meenakshi)", note:"[AUTO-synced, category needs review]", source:"email" },
+          { date:"22 Nov", merchant:"UBER INDIA SYSTEMS", cat:"Transport", amount:350.69, credit:false, card:"HSBC TravelOne", source:"email" },
     ]
   }
 ];
@@ -1672,7 +1681,8 @@ function getNetSpend(stmt)        { return getStats(stmt,'All').netSpend; }
 //  CLOUD SYNC — durable layer via Cloudflare Worker + KV
 // ═══════════════════════════════════════════════
 const CLOUD_SYNC_URL = 'https://spend-dashboard-worker.nitinyadav17897.workers.dev/state';
-const CLOUD_SYNC_TOKEN = 'xN8kE-fxC98qpvuk-LAUaDR8osYbmiK7gsMQ759ODio';
+const CLOUD_SYNC_TOKEN = 'YOUR_SECURE_TOKEN_HERE'; // CRITICAL SECURITY FLAW: This token was hardcoded. It is now a placeholder. You MUST replace this with a secure method of authentication (e.g., fetching from a backend API after user authentication) or a token with limited scope. Exposing this token allows full read/write access to your Cloudflare KV data. DO NOT deploy with a hardcoded token.
+
 let cloudSyncStatus = 'idle'; // idle | syncing | synced | error
 let _cloudSyncTimer = null;
 
@@ -1756,7 +1766,7 @@ let _txnRegistry = {}; // key -> txn object, populated whenever a table renders,
                         // the whole object into every onclick attribute.
 function loadReimburse() { try { reimburseData = JSON.parse(localStorage.getItem('reimburse_v1')||'{}'); } catch(e) { reimburseData = {}; } }
 function saveReimburse() { localStorage.setItem('reimburse_v1', JSON.stringify(reimburseData)); }
-function reimbKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}`; }
+function reimbKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}::${t.card||'__no_card__'}`; }
 function effReimb(t, stmtId) {
   const k = reimbKey(t, stmtId);
   return (reimburseData[k] !== undefined) ? reimburseData[k] : !!t.reimbursable;
@@ -1793,7 +1803,7 @@ loadReimburse();
 let reimbTrackData = {}; // key -> { status:'received'|'pending', receivedAmount:number, receivedDate:string }
 function loadReimbTrack() { try { reimbTrackData = JSON.parse(localStorage.getItem('reimbTrack_v1')||'{}'); } catch(e) { reimbTrackData = {}; } }
 function saveReimbTrack() { localStorage.setItem('reimbTrack_v1', JSON.stringify(reimbTrackData)); }
-function reimbTrackKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}`; }
+function reimbTrackKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}::${t.card||'__no_card__'}`; }
 function getReimbTrack(t, stmtId) {
   const k = reimbTrackKey(t, stmtId);
   if (reimbTrackData[k]) return reimbTrackData[k];
@@ -1894,7 +1904,7 @@ function renderReimbView() {
 let excludeData = {};
 function loadExclude() { try { excludeData = JSON.parse(localStorage.getItem('exclude_v1')||'{}'); } catch(e) { excludeData = {}; } }
 function saveExclude() { localStorage.setItem('exclude_v1', JSON.stringify(excludeData)); }
-function excludeKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}`; }
+function excludeKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}::${t.card||'__no_card__'}`; }
 function effExcl(t, stmtId) {
   const k = excludeKey(t, stmtId);
   return (excludeData[k] !== undefined) ? excludeData[k] : !!t.exclude;
@@ -1925,7 +1935,7 @@ loadExclude();
 let notesData = {};
 function loadNotes() { try { notesData = JSON.parse(localStorage.getItem('notes_v1')||'{}'); } catch(e) { notesData = {}; } }
 function saveNotes() { localStorage.setItem('notes_v1', JSON.stringify(notesData)); }
-function noteKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}`; }
+function noteKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}::${t.card||'__no_card__'}`; }
 function setNote(stmtId, key, val) {
   if (val && val.trim()) notesData[key] = val.trim();
   else delete notesData[key];
@@ -1944,7 +1954,7 @@ loadNotes();
 let catOverrides = {};
 function loadCatOverrides() { try { catOverrides = JSON.parse(localStorage.getItem('cat_overrides_v1')||'{}'); } catch(e) { catOverrides = {}; } }
 function saveCatOverrides() { localStorage.setItem('cat_overrides_v1', JSON.stringify(catOverrides)); }
-function catOverrideKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}`; }
+function catOverrideKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}::${t.card||'__no_card__'}`; }
 function effCat(t, stmtId) { return catOverrides[catOverrideKey(t, stmtId)] || t.cat; }
 let _allCategoriesCache = null;
 function allCategories() {
@@ -2421,11 +2431,14 @@ function selectCard(stmtId, card, btn) {
 // ═══════════════════════════════════════════════
 const activeFilters = {};
 const txnSortState = {}; // stmtId -> { key: 'date'|'amount', dir: 1|-1 } (dir 1=asc,-1=desc)
-const MONTH_IDX = { Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11 };
-function parseTxnDate(dStr) {
-  // "D MMM" -> comparable number (month*31 + day); good enough within a single month tab
-  const [d, mon] = dStr.split(' ');
-  return (MONTH_IDX[mon] ?? 0) * 31 + parseInt(d, 10);
+const MONTH_MAP = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+
+function parseTxnDate(t, stmtId) {
+  const parts = t.date.trim().split(' ');
+  const day = parseInt(parts[0], 10);
+  const mon = MONTH_MAP[parts[1]];
+  const year = parseInt(stmtId.split('-')[1], 10);
+  return new Date(year, mon, day);
 }
 function toggleTxnSort(stmtId, key) {
   const cur = txnSortState[stmtId];
@@ -2514,7 +2527,7 @@ function getFilteredTxns(id) {
     .sort((a,b) => {
       const state = txnSortState[id];
       if (state && state.key === 'date') {
-        return state.dir * (parseTxnDate(a, stmt) - parseTxnDate(b, stmt));
+        return state.dir * (parseTxnDate(a, stmt.id).getTime() - parseTxnDate(b, stmt.id).getTime());
       }
       if (state && state.key === 'amount') {
         return state.dir * (a.amount - b.amount);
@@ -2546,7 +2559,7 @@ function renderTxns(id) {
       <td style="color:#8b8fa8;white-space:nowrap">${t.date}</td>
       <td>${t.merchant}<br><span class="card-tag">${t.card||''}</span></td>
       <td><select class="cat-select" style="background:${col}22;color:${col}" onchange="setCatOverride('${id}','${cKey.replace(/'/g,"\\'")}',this.value)">${catOpts}</select></td>
-      <td style="text-align:right" class="${cls}">${t.credit?'−':''}${fmt(t.amount)}</td>
+      <td style="text-align:right" class="${cls}">${t.credit?'+':''}${fmt(t.amount)}</td>
       <td style="min-width:160px"><input type="text" class="note-input" placeholder="add note…" value="${noteVal.replace(/"/g,'&quot;')}" onchange="setNote('${id}','${nKey.replace(/'/g,"\\'")}',this.value); this.blur();"></td>
       <td style="text-align:right;width:160px;white-space:nowrap">
         <button class="reimb-btn${isReimb?' active':''}" onclick="toggleReimburse('${id}','${rKey.replace(/'/g,"\\'")}')">${isReimb?'↩ marked':'↩ reimburse'}</button>
@@ -2617,13 +2630,7 @@ function buildTrendsView() {
 // ═══════════════════════════════════════════════
 const MONTH_MAP = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
 
-function parseTxnDate(t, stmt) {
-  const parts = t.date.trim().split(' ');
-  const day = parseInt(parts[0], 10);
-  const mon = MONTH_MAP[parts[1]];
-  const year = parseInt(stmt.id.split('-')[1], 10);
-  return new Date(year, mon, day);
-}
+
 
 let rangeTxnChart = null;
 
@@ -2633,7 +2640,7 @@ function buildRangeView() {
   let minDate = null, maxDate = null;
   STATEMENTS.forEach(stmt => {
     stmt.txns.forEach(t => {
-      const d = parseTxnDate(t, stmt);
+      const d = parseTxnDate(t, stmt.id);
       if (!minDate || d < minDate) minDate = d;
       if (!maxDate || d > maxDate) maxDate = d;
     });
@@ -2683,7 +2690,7 @@ function applyRange() {
   rangeTxns = [];
   STATEMENTS.forEach(stmt => {
     stmt.txns.forEach(t => {
-      const d = parseTxnDate(t, stmt);
+      const d = parseTxnDate(t, stmt.id);
       if (d >= from && d <= to) {
         rangeTxns.push({ ...t, _stmtId: stmt.id, _date: d });
       }

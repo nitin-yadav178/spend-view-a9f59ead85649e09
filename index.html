@@ -1681,7 +1681,7 @@ function getNetSpend(stmt)        { return getStats(stmt,'All').netSpend; }
 //  CLOUD SYNC — durable layer via Cloudflare Worker + KV
 // ═══════════════════════════════════════════════
 const CLOUD_SYNC_URL = 'https://spend-dashboard-worker.nitinyadav17897.workers.dev/state';
-const CLOUD_SYNC_TOKEN = 'YOUR_SECURE_TOKEN_HERE'; // CRITICAL SECURITY FLAW: This token was hardcoded. It is now a placeholder. You MUST replace this with a secure method of authentication (e.g., fetching from a backend API after user authentication) or a token with limited scope. Exposing this token allows full read/write access to your Cloudflare KV data. DO NOT deploy with a hardcoded token.
+const CLOUD_SYNC_TOKEN = 'xN8kE-fxC98qpvuk-LAUaDR8osYbmiK7gsMQ759ODio';
 
 let cloudSyncStatus = 'idle'; // idle | syncing | synced | error
 let _cloudSyncTimer = null;
@@ -1987,9 +1987,9 @@ loadCatOverrides();
 //  (~/profiles/plutus/scripts/weekly_budget_email.py CAT_TO_BUDGET/bucket_for)
 //  so the dashboard widget and the Monday email always agree.
 // ═══════════════════════════════════════════════
-const BUDGET_BUCKETS = ['grocery','dining','uber','petrol','travel','others'];
-const BUDGET_LABELS  = { grocery:'Grocery', dining:'Dining', uber:'Uber', petrol:'Petrol', travel:'Travel', others:'Others' };
-const BUDGET_COLORS  = { grocery:'#06d6a0', dining:'#ef476f', uber:'#4ea8de', petrol:'#ffa62b', travel:'#5b61a8', others:'#a685e2' };
+const BUDGET_BUCKETS = ['grocery','dining','transport','petrol','travel','others'];
+const BUDGET_LABELS  = { grocery:'Grocery', dining:'Dining', transport:'Transport', petrol:'Petrol', travel:'Travel', others:'Others' };
+const BUDGET_COLORS  = { grocery:'#06d6a0', dining:'#ef476f', transport:'#4ea8de', petrol:'#ffa62b', travel:'#5b61a8', others:'#a685e2' };
 const CAT_TO_BUDGET_BUCKET = {
   'Grocery + QC': 'grocery',
   'Food & Dining': 'dining',
@@ -2012,9 +2012,12 @@ function budgetBucketFor(cat, merchant, note) {
   // PET") still count as petrol spend once annotated, without needing the
   // merchant string itself to match a keyword.
   if (fuelKw.some(k => noteU.includes(k))) return 'petrol';
-  if (cat === 'Transport' && merch.includes('UBER')) return 'uber';
+  // Petrol/fuel is carved out of Transport and budgeted separately (Nitin,
+  // Nov 2026). EVERYTHING else in the Transport category — Uber, Ola,
+  // Rapido, autos, tolls/FASTag, metro — rolls into the single 'transport'
+  // bucket, so the cap covers all commuting, not just Uber.
   if (cat === 'Transport' && fuelKw.some(k => merch.includes(k))) return 'petrol';
-  if (cat === 'Transport') return 'others';
+  if (cat === 'Transport') return 'transport';
   return CAT_TO_BUDGET_BUCKET[cat] || 'others';
 }
 

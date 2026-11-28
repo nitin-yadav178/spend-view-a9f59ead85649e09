@@ -1273,7 +1273,7 @@ const STATEMENTS = [
       { date:"20 Oct", merchant:"UBER INDIA SYSTEMS", cat:"Transport", amount:379.24, credit:false, card:"HSBC TravelOne", source:"statement" },
       { date:"20 Oct", merchant:"BLINKIT", cat:"Grocery + QC", amount:208.0, credit:false, card:"Axis Atlas (Meenakshi)", source:"outlook" },
       { date:"20 Oct", merchant:"BLINKIT", cat:"Grocery + QC", amount:493.0, credit:false, card:"Axis Atlas (Meenakshi)", source:"outlook" },
-      { date:"19 Oct", merchant:"JOAQUIM PET", cat:"Shopping", amount:972.83, credit:false, card:"Axis Neo/Flipkart", source:"outlook" },
+      { date:"19 Oct", merchant:"JOAQUIM PET", cat:"Petrol", amount:972.83, credit:false, card:"Axis Neo/Flipkart", note:"petrol", source:"outlook" },
       { date:"19 Oct", merchant:"CAS*Swiggy", cat:"Food & Dining", amount:973.0, credit:false, card:"Axis Atlas (Meenakshi)", source:"outlook" },
       { date:"19 Oct", merchant:"Daalchini", cat:"Food & Dining", amount:112.0, credit:false, card:"Axis Neo/Flipkart", source:"statement" },
       { date:"19 Oct", merchant:"Daalchini", cat:"Food & Dining", amount:15.0, credit:false, card:"Axis Neo/Flipkart", source:"statement" },
@@ -1535,7 +1535,7 @@ const STATEMENTS = [
           { date:"9 Nov", merchant:"AMAZON PAY INDIA PRIVA", cat:"Shopping", amount:384.0, credit:false, card:"HSBC TravelOne", source:"email" },
           { date:"9 Nov", merchant:"URBANCLAP TECHNOLOGIES", cat:"Home Services", amount:538.0, credit:false, card:"HSBC TravelOne", source:"email" },
           { date:"9 Nov", merchant:"URBANCLAP TECHNOLOGIES", cat:"Home Services", amount:1937.0, credit:false, card:"HSBC TravelOne", source:"email" },
-          { date:"8 Nov", merchant:"AURO PETROL", cat:"Transport", amount:2300.0, credit:false, card:"Axis Atlas", source:"email" },
+          { date:"8 Nov", merchant:"AURO PETROL", cat:"Petrol", amount:2300.0, credit:false, card:"Axis Atlas", source:"email" },
           { date:"12 Nov", merchant:"RELIANCE RE", cat:"Shopping", amount:6969.07, credit:false, card:"Axis Atlas (Meenakshi)", note:"[AUTO-synced, category needs review]", source:"email" },
           { date:"12 Nov", merchant:"ZEPTO MARKE", cat:"Grocery + QC", amount:1052.0, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
           { date:"11 Nov", merchant:"UBER INDIA", cat:"Transport", amount:427.04, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
@@ -1604,7 +1604,7 @@ const STATEMENTS = [
           { date:"17 Nov", merchant:"UBER INDIA", cat:"Transport", amount:348.47, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
           { date:"17 Nov", merchant:"AMAZON PAY INDIA PRIVA", cat:"Shopping", amount:965.0, credit:false, card:"HSBC TravelOne", source:"email" },
           { date:"17 Nov", merchant:"UBER INDIA", cat:"Transport", amount:283.8, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
-          { date:"16 Nov", merchant:"JOAQUIM PET", cat:"Shopping", amount:1500.0, credit:false, card:"Axis Atlas", note:"[AUTO-synced, category needs review]", source:"email" },
+          { date:"16 Nov", merchant:"JOAQUIM PET", cat:"Petrol", amount:1500.0, credit:false, card:"Axis Atlas", note:"petrol expense", source:"email" },
           { date:"16 Nov", merchant:"Daalchini", cat:"Food & Dining", amount:50.0, credit:false, card:"Axis Neo/Flipkart", source:"email" },
           { date:"16 Nov", merchant:"UBER INDIA", cat:"Transport", amount:324.55, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
           { date:"19 Nov", merchant:"UBER INDIA", cat:"Transport", amount:240.72, credit:false, card:"Axis Atlas (Meenakshi)", source:"email" },
@@ -1699,7 +1699,7 @@ const STATEMENTS = [
 //  CONSTANTS
 // ═══════════════════════════════════════════════
 const COLORS = ['#ef476f','#ffa62b','#06d6a0','#4ea8de','#a685e2','#ff7f50','#2dd4bf','#f472b6','#60a5fa','#ffd60a','#9ca3af','#e879f9'];
-const ALL_CATS = ['Food & Dining','Home & Furniture','Travel','Shopping','Subscriptions','Home Services','Grocery + QC','Health','Transport','Taxes'];
+const ALL_CATS = ['Food & Dining','Home & Furniture','Travel','Shopping','Subscriptions','Home Services','Grocery + QC','Health','Transport','Petrol','Taxes'];
 
 function catColor(name) {
   const idx = ALL_CATS.indexOf(name);
@@ -2095,6 +2095,12 @@ function budgetBucketFor(cat, merchant, note) {
   // Nov 2026). EVERYTHING else in the Transport category — Uber, Ola,
   // Rapido, autos, tolls/FASTag, metro — rolls into the single 'transport'
   // bucket, so the cap covers all commuting, not just Uber.
+  // Petrol is now its own CATEGORY (Nitin, Nov 2026) so it shows separately in
+  // the category breakdown instead of being hidden inside Transport's rows.
+  // The note-based and merchant-keyword rules below are KEPT as a safety net:
+  // a newly-seen pump that lands in Transport/Shopping still buckets as petrol
+  // before anyone notices and recategorizes it.
+  if (cat === 'Petrol') return 'petrol';
   if (cat === 'Transport' && fuelKw.some(k => merch.includes(k))) return 'petrol';
   if (cat === 'Transport') return 'transport';
   return CAT_TO_BUDGET_BUCKET[cat] || 'others';

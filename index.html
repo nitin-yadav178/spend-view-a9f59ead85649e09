@@ -1825,9 +1825,26 @@ let _txnRegistry = {}; // key -> txn object, populated whenever a table renders,
 function loadReimburse() { try { reimburseData = JSON.parse(localStorage.getItem('reimburse_v1')||'{}'); } catch(e) { reimburseData = {}; } }
 function saveReimburse() { localStorage.setItem('reimburse_v1', JSON.stringify(reimburseData)); }
 function reimbKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}::${t.card||'__no_card__'}`; }
+// LEGACY KEY FALLBACK — do not remove.
+// Key format changed from 4-part (no card segment) to 5-part on 2026-11-23
+// with no data migration, which silently orphaned every note/category
+// override/reimburse flag in the Cloudflare KV store (45 notes, 23 cat
+// overrides, 24 reimburse flags went invisible at once). lookupState() reads
+// the current key first, then the legacy 4-part key, so an old entry still
+// resolves. ANY future change to the key format MUST either migrate the KV
+// store or add the previous format here — never just change the key.
+function legacyKey4(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}`; }
+function lookupState(store, t, stmtId) {
+  const k = `${stmtId}::${t.date}::${t.merchant}::${t.amount}::${t.card||'__no_card__'}`;
+  if (store[k] !== undefined) return store[k];
+  const lk = legacyKey4(t, stmtId);
+  if (store[lk] !== undefined) return store[lk];
+  return undefined;
+}
 function effReimb(t, stmtId) {
   const k = reimbKey(t, stmtId);
-  return (reimburseData[k] !== undefined) ? reimburseData[k] : !!t.reimbursable;
+  const v = lookupState(reimburseData, t, stmtId);
+  return (v !== undefined) ? v : !!t.reimbursable;
 }
 function getReimbTotal(stmtId) {
   const stmt = STATEMENTS.find(s=>s.id===stmtId);
@@ -1865,6 +1882,8 @@ function reimbTrackKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}:
 function getReimbTrack(t, stmtId) {
   const k = reimbTrackKey(t, stmtId);
   if (reimbTrackData[k]) return reimbTrackData[k];
+  const lv = lookupState(reimbTrackData, t, stmtId);
+  if (lv) return lv;
   const seedAmt = t.reimbPaidAmount || 0;
   return { status: 'pending', receivedAmount: seedAmt, receivedDate: '' };
 }
@@ -1965,7 +1984,8 @@ function saveExclude() { localStorage.setItem('exclude_v1', JSON.stringify(exclu
 function excludeKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}::${t.card||'__no_card__'}`; }
 function effExcl(t, stmtId) {
   const k = excludeKey(t, stmtId);
-  return (excludeData[k] !== undefined) ? excludeData[k] : !!t.exclude;
+  const v = lookupState(excludeData, t, stmtId);
+  return (v !== undefined) ? v : !!t.exclude;
 }
 function getExcludeTotal(stmtId) {
   const stmt = STATEMENTS.find(s=>s.id===stmtId);
@@ -2002,7 +2022,8 @@ function setNote(stmtId, key, val) {
 }
 function effNote(t, stmtId) {
   const k = noteKey(t, stmtId);
-  return (notesData[k] !== undefined) ? notesData[k] : (t.note || '');
+  const v = lookupState(notesData, t, stmtId);
+  return (v !== undefined) ? v : (t.note || '');
 }
 loadNotes();
 
@@ -2013,7 +2034,7 @@ let catOverrides = {};
 function loadCatOverrides() { try { catOverrides = JSON.parse(localStorage.getItem('cat_overrides_v1')||'{}'); } catch(e) { catOverrides = {}; } }
 function saveCatOverrides() { localStorage.setItem('cat_overrides_v1', JSON.stringify(catOverrides)); }
 function catOverrideKey(t, stmtId) { return `${stmtId}::${t.date}::${t.merchant}::${t.amount}::${t.card||'__no_card__'}`; }
-function effCat(t, stmtId) { return catOverrides[catOverrideKey(t, stmtId)] || t.cat; }
+function effCat(t, stmtId) { return lookupState(catOverrides, t, stmtId) || t.cat; }
 let _allCategoriesCache = null;
 function allCategories() {
   if (_allCategoriesCache) return _allCategoriesCache;
